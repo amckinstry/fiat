@@ -164,11 +164,17 @@ foreach( LIB_TYPE ${LIB_TYPES} )
         target_include_directories ( ${fiatlib} PRIVATE ${PAPI_INCLUDE_DIRS} )
     endif()
 
+
     if( ${CMAKE_SYSTEM_NAME} MATCHES "Darwin" )
         # Following should not be necessary; 
         # Probably a bug in the M1 prerelease of gfortran 10.2.0.4
         target_compile_definitions( ${fiatlib} PRIVATE $<$<COMPILE_LANG_AND_ID:Fortran,GNU>:__APPLE__>)
     endif()
+
+if( HAVE_OMP )
+    target_link_libraries( fiat PRIVATE OpenMP::OpenMP_Fortran OpenMP::OpenMP_C )
+endif()
+
 
     if( NOT HAVE_MPI )
         # define a preprocessor macro to improve messaging in dr_hook_init

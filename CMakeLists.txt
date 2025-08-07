@@ -23,8 +23,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 ### Options
 
 ecbuild_add_option( FEATURE OMP
-                    DESCRIPTION "Support for OpenMP shared memory parallelism"
-                    REQUIRED_PACKAGES "OpenMP COMPONENTS Fortran" )
+                    DESCRIPTION "support for OpenMP shared memory parallelism"
+                    REQUIRED_PACKAGES "OpenMP COMPONENTS Fortran C" )
 
 ecbuild_add_option( FEATURE MPI
                     DESCRIPTION "Support for MPI distributed parallelism"
