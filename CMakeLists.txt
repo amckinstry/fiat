@@ -90,6 +90,8 @@ ecbuild_add_option( FEATURE DR_HOOK_NVTX
 
 ecbuild_find_package( NAME Realtime QUIET )
 
+fiat_find_fypp()
+
 ### Sources
 
 include( fiat_compiler_warnings )
