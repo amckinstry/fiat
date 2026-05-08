@@ -45,8 +45,11 @@ endif()
 configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/library/version.c.in ${CMAKE_CURRENT_BINARY_DIR}/version.c @ONLY )
 
 ecbuild_list_add_pattern( LIST fiat_src GLOB *.c *.F* *.cc )
+ecbuild_list_add_pattern( LIST fiat_fypp_src GLOB *.fypp )
 
 ecbuild_list_exclude_pattern( LIST fiat_src REGEX drhook/extensions/*)
+
+fiat_preprocess_fypp_sources( LIST fiat_src ${fiat_fypp_src} )
 
 set( fiat_src ${fiat_src} PARENT_SCOPE )
 
