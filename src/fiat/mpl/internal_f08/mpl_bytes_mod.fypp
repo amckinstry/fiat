@@ -1,0 +1,38 @@
+! (C) Copyright 2005- ECMWF.
+! (C) Copyright 2013- Meteo-France.
+! 
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
+
+MODULE MPL_BYTES_MOD
+
+
+USE EC_PARKIND, ONLY : JPIM, JPIB, JPRM, JPRD
+
+IMPLICIT NONE
+
+PRIVATE
+
+PUBLIC :: MPL_BYTES
+
+INTERFACE MPL_BYTES
+#:for type in ['IM','IB','RM','RD']
+   MODULE PROCEDURE MPL_BYTES_${type}$
+#:endfor
+END INTERFACE MPL_BYTES
+
+CONTAINS
+
+#:for type in ['IM','IB','RM','RD']
+FUNCTION MPL_BYTES_${type}$(KVAR)
+INTEGER(KIND=JP${type}$), INTENT(IN) :: KVAR
+INTEGER(KIND=JPIM) MPL_BYTES_IM
+MPL_BYTES_${type}$ = SIZE(TRANSFER(KVAR, (/'A'/)))
+END FUNCTION MPL_BYTES_${type$}
+
+      
+END MODULE MPL_BYTES_MOD
