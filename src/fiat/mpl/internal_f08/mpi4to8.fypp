@@ -59,7 +59,7 @@ MODULE MPI4TO8
 #:endif      
 
         
-#ifdef USE_8_BYTE_WORDS
+#:if defined('USE_8_BYTE_WORDS')
 
 USE EC_PARKIND, ONLY : JPIM, JPRM, JPRD
 USE MPL_MPIF
@@ -1055,5 +1055,7 @@ END SUBROUTINE MPI_SCATTERV8_${type}$
 
 ! =========================================================
 
-#endif
+#:endif
+#! endif(8_BYTE_WORDS)
+      
 END MODULE MPI4TO8
