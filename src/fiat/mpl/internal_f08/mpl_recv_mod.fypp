@@ -75,15 +75,28 @@ USE MPL_NPROC_MOD
 
 IMPLICIT NONE
 
-#define SUBNAME(NAME) NAME
-#include "mpl_recv_mod.intf.h"
-#undef SUBNAME
+#:set types = ['REAL4','REAL8','INT','INT2', 'INT8', 'INT_SCALAR','REAL42', &
+  & 'REAL43','REAL82', 'CHAR_SCALAR','CHAR','REAL4_SCALAR','REAL8_SCALAR','REAL83' ] 
 
-#ifdef _CUDA
-#define SUBNAME(NAME) NAME##_DEVICE
-#include "mpl_recv_mod.intf.h"
-#undef SUBNAME
-#endif
+INTERFACE MPL_RECV
+
+#:for type in types
+MODULE PROCEDURE  MPL_RECV_${type}$
+#:endfor
+
+END INTERFACE MPL_RECV
+
+
+#:if defined('_CUDA')
+INTERFACE MPL_RECV_DECVICE
+
+#:for type in types
+MODULE PROCEDURE  MPL_RECV_${type}$_DEVICE
+#:endfor
+
+END INTERFACE MPL_RECV_DEVICE
+
+#:endif
 
 PRIVATE
 
@@ -147,10 +160,10 @@ END SUBROUTINE MPL_RECV_PREAMB
 SUBROUTINE MPL_RECV_TAIL(KRECV_STATUS,KTYPE,KFROM,KOUNT,KRECVTAG,KERROR,CDSTRING)
 
 
-#ifdef USE_8_BYTE_WORDS
+#:if defined('USE_8_BYTE_WORDS')
   USE MPI4TO8, ONLY : &
     MPI_RECV => MPI_RECV8, MPI_GET_COUNT => MPI_GET_COUNT8
-#endif
+#:endif
 
 INTEGER(KIND=JPIM),INTENT(IN) :: KRECV_STATUS(MPI_STATUS_SIZE)
 INTEGER(KIND=JPIM),INTENT(IN) :: KTYPE
@@ -191,12 +204,12 @@ END SUBROUTINE MPL_RECV_TAIL
 #undef SUBNAME
 #undef _ATTR_
 
-#ifdef _CUDA
+#:if defined('_CUDA')
 #define SUBNAME(NAME) NAME##_DEVICE
 #define _ATTR_ ,DEVICE
 #include "mpl_recv_mod.body.h"
 #undef SUBNAME
 #undef _ATTR_
-#endif
+#:endif
 
 END MODULE MPL_RECV_MOD
