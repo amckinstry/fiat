@@ -15,8 +15,9 @@ MODULE MPI4TO8
       & 'R4' : ('REAL(KIND=JPRM)',1,True, True, 'REAL' ), &
       & 'R8' : ('REAL(KIND=JPRD)',1,False,False, 'REAL' ), &
       & 'R42' : ('REAL(KIND=JPRM)',2,True, True, 'REAL' ), &
-      & 'I42' : ('INTEGER(KIND=JRPM)', 2 , True, True , 'INTEGER') &
+      & 'I42' : ('INTEGER(KIND=JRPM)', 2 , True, True , 'INTEGER'), &
       & 'R82' : ('REAL(KIND=JPRD)', 2 , False, False,'REAL'), &
+      & 'I8'  : ('INTEGER(KIND=JPIB)', 1, True, False,'INTEGER'), &
       & 'I4'  : ('INTEGER(KIND=JPIM)', 1, True, False,'INTEGER'), &
       & 'I1'  : ('INTEGER(KIND=JPIM)', 0, False, True,'INTEGER'), &
       & 'R4_1' : ('REAL(KIND=JPRM)', 0, False, True,'REAL'), &
@@ -24,10 +25,14 @@ MODULE MPI4TO8
       & 'CH' : ('CHARACTER(LEN=*)', 0, False, False,'CHARACTER'), &
       & 'R4_2D' : ('REAL(KIND=JPRM)',2,True, True,'REAL' ), &
       & 'R8_2D' : ('REAL(KIND=JPRM)',2,True, True,'REAL' ), &
+      & 'R4S' : ('REAL(KIND=JPRM)',0,False,True,'REAL'), &
       & 'R8S' : ('REAL(KIND=JPRD)',1,False,True,'REAL'), &
-      & }
+      & 'I4S' : ('INTEGER(KIND=JRPM)', 1 , False, True , 'INTEGER'), &
+      & 'I4S_1' : ('INTEGER(KIND=JRPM)', 0 , False, True , 'INTEGER'), &
+      & 'R8S_1' : ('REAL(KIND=JPRD)',0,False,True,'REAL'), &
+      }
 
-#:set sendrecv_types = ['R4','R8','R42','R82','I4','I1','CH',I42','R4_1','R8_1']
+#:set sendrecv_types = ['R4','R8','R42','R82','I4','I1','CH','I42','R4_1','R8_1']
 #:set mpifile_types =  ['R8','I4']
 #:set alltoallv_types = ['R8','I4']
 #:set gather_types = ['I8','R8_1']
@@ -36,27 +41,29 @@ MODULE MPI4TO8
 #:set gatherv_types = ['R4','R8','R4S','R8S','I4','I1','I4S','I4S_1','R8_1','R8S_1']
 #:set scatterv_types = ['R8','I4','R8S','I4S']
 #:set bcast_types = ['R4','R8','I4','I1','CH']      
+
 #:def allocatable(type)
- #:if vdefs[type][2] == True
+ #:if vdef[type][2] == True
    ALLOCATABLE
  #:endif
 #:enddef
 #:def dim(type)
-  #: set dim = {'0': '', '1': 'DIMENSION(:)','2':'DIMENSION(:,:)' }
-  $dim[vdef[type][1]]$
+  #: set y = vdef[type][1]
+  #: set dimension = {0: '', 1: ',DIMENSION(:)',2:',DIMENSION(:,:)' }
+  ${dimension[y]}$
 #:enddef
-#:def allocate(type)
-  $vdefs[type][2]$
-#:endif      
+#:def is_allocatable(type)
+  ${vdef[type][2]}$
+#:enddef      
 #:def kind(type)
-  $vdef[type][0]$
+  ${vdef[type][0]}$
 #:enddef
 #:def cast(type)
-  $vdef[type][3]$
+  ${vdef[type][3]}$
 #:enddef
 #:def base_kind(type)
-     $vdef[type][4]$
-#:endif      
+     ${vdef[type][4]}$
+#:enddef
 
         
 #:if defined('USE_8_BYTE_WORDS')
@@ -93,7 +100,7 @@ INTERFACE MPI_BCAST8
 #:endfor      
 END INTERFACE MPI_BCAST8
 
-#:for method in ['BSEND8', 'ISEND8','SEND8','IRECV8','RECV8'
+#:for method in ['BSEND8', 'ISEND8','SEND8','IRECV8','RECV8']
 INTERFACE MPI_${method}$
 #:for type in sendrecv_types
 
@@ -102,7 +109,7 @@ INTERFACE MPI_${method}$
 END INTERFACE MPI_${method}$
 #:endfor
 
-#:for method in ['IREAD_SHARED8','IWRITE_SHARED8','READ_ORDERED8', 'READ_ORDERED_BEGIN8','READ_ORDERED_END8','READ_SHARED8','WRITE_ORDERED8','WRITE_ORDERED_BEGIN8','WRITE_ORDERED_END8','WRITE_SHARED8']
+#:for method  in ['IREAD_SHARED8','IWRITE_SHARED8','READ_ORDERED8', 'READ_ORDERED_BEGIN8','READ_ORDERED_END8','READ_SHARED8','WRITE_ORDERED8','WRITE_ORDERED_BEGIN8','WRITE_ORDERED_END8','WRITE_SHARED8']
 INTERFACE MPI_FILE_${method}$
 #:for type in mpifile_types
   MODULE PROCEDURE MPI_FILE_${method}$_${type}$
@@ -118,7 +125,7 @@ INTERFACE MPI_GATHER8
 END INTERFACE MPI_GATHER8
 
 INTERFACE MPI_GATHERV8
-#:for type in 
+#:for type in gatherv_types
   MODULE PROCEDURE MPI_GATHERV8_${type}$
 #:endfor
 END INTERFACE MPI_GATHERV8
@@ -154,7 +161,7 @@ SUBROUTINE MPI_ALLREDUCE8_${type}$(SENDDATA, RECVDATA, COUNT, DATATYPE, OP, &
   INTEGER(KIND=8) :: &
     COUNT8, DATATYPE8, OP8, COMM8, IERROR8
 
-#:if allocate(type)
+#:if is_allocatable(type)
   ALLOCATE(SENDDATA8(SIZE(SENDDATA)))
   ALLOCATE(RECVDATA8(SIZE(RECVDATA)))
 #:endif
@@ -176,7 +183,7 @@ SUBROUTINE MPI_ALLREDUCE8_${type}$(SENDDATA, RECVDATA, COUNT, DATATYPE, OP, &
 #:endif
   IERROR = IERROR8
 
-#:if allocate(type)
+#:if is_allocatable(type)
   DEALLOCATE(SENDDATA8)
   DEALLOCATE(RECVDATA8)
 #:endif
@@ -212,7 +219,7 @@ SUBROUTINE MPI_ALLGATHERV8_${type}$(SENDAREA, SENDCOUNT, SENDTYPE, RECVAREA, &
   INTEGER(KIND=8) :: &
     SENDCOUNT8, SENDTYPE8, RECVTYPE8, COMM8, IERROR8
 
-#:if allocate(type)
+#:if is_allocatable(type)
   ALLOCATE(SENDAREA8(SIZE(SENDAREA)))
   ALLOCATE(RECVAREA8(SIZE(RECVAREA)))
 #:endif
@@ -240,7 +247,7 @@ SUBROUTINE MPI_ALLGATHERV8_${type}$(SENDAREA, SENDCOUNT, SENDTYPE, RECVAREA, &
 #:endif
   IERROR = IERROR8
 
-#:if allocate(type)
+#:if is_allocatable(type)
   DEALLOCATE(SENDAREA8)
   DEALLOCATE(RECVAREA8)
 #:endif
@@ -259,13 +266,13 @@ END SUBROUTINE MPI_ALLGATHERV8_${type}$
 SUBROUTINE MPI_ALLTOALLV8_${type}$(SENDAREA, SENDCOUNTS, SDISPLS, SENDTYPE, &
                              RECVAREA, RECVCOUNTS, RDISPLS, RECVTYPE, &
                              COMM, IERROR)
-  ${kind[type]}$, ${dim(type)}$ INTENT(IN) :: &
+  ${kind(type)}$, ${dim(type)}$ INTENT(IN) :: &
     SENDAREA
   INTEGER(KIND=JPIM), DIMENSION(:), INTENT(IN) :: &
     SENDCOUNTS, SDISPLS, RECVCOUNTS, RDISPLS
   INTEGER(KIND=JPIM), INTENT(IN) :: &
     SENDTYPE, RECVTYPE, COMM
-  ${kind[type]}$, ${dim(type)}$ INTENT(OUT) :: &
+  ${kind(type)}$, ${dim(type)}$ INTENT(OUT) :: &
     RECVAREA
   INTEGER(KIND=JPIM), INTENT(OUT) :: &
     IERROR
@@ -279,7 +286,7 @@ SUBROUTINE MPI_ALLTOALLV8_${type}$(SENDAREA, SENDCOUNTS, SDISPLS, SENDTYPE, &
   INTEGER(KIND=8) :: &
     SENDTYPE8, RECVTYPE8, COMM8, IERROR8
 
-#:if allocate(type)
+#:if is_allocatable(type)
   ALLOCATE(SENDAREA8(SIZE(SENDAREA)))
   ALLOCATE(RECVAREA8(SIZE(RECVAREA)))
 #:endif
@@ -313,7 +320,7 @@ SUBROUTINE MPI_ALLTOALLV8_${type}$(SENDAREA, SENDCOUNTS, SDISPLS, SENDTYPE, &
   IERROR = IERROR8
 
 
-#:if allocate(type)
+#:if is_allocatable(type)
   DEALLOCATE(SENDAREA8)
   DEALLOCATE(READAREA8)
 #:endif
@@ -344,7 +351,7 @@ SUBROUTINE MPI_BCAST8_${type}$(DATA, COUNT, DATATYPE, ROOT, COMM, IERROR)
   INTEGER(KIND=8) :: &
     COUNT8, DATATYPE8, ROOT8, COMM8, IERROR8
 
-#:if allocate(type)
+#:if is_allocatable(type)
   ALLOCATE(DATA8(SIZE(DATA)))  
 #:endif
 
@@ -361,7 +368,7 @@ SUBROUTINE MPI_BCAST8_${type}$(DATA, COUNT, DATATYPE, ROOT, COMM, IERROR)
 
   IERROR = IERROR8
 
-#:if allocate(type)
+#:if is_allocatable(type)
   DEALLOCATE(DATA8)
 #:endif
 
@@ -389,7 +396,7 @@ SUBROUTINE MPI_BSEND8_${type}$(DATA, COUNT, DATATYPE, DEST, TAG, COMM, IERROR)
   INTEGER(KIND=8) :: &
     COUNT8, DATATYPE8, DEST8, TAG8, COMM8, IERROR8
 
-#:if allocate(type)
+#:if allocatable(type)
   ALLOCATE(DATA8(SIZE(DATA)))
 #:endif
 
@@ -407,7 +414,7 @@ SUBROUTINE MPI_BSEND8_${type}$(DATA, COUNT, DATATYPE, DEST, TAG, COMM, IERROR)
 
   IERROR = IERROR8
 
-#:if allocate(type)
+#:if allocatable(type)
   DEALLOCATE(DATA8)
 #:endif
 
@@ -429,7 +436,7 @@ SUBROUTINE MPI_ISEND8_${type}$ (DATA, COUNT, DATATYPE, DEST, TAG, COMM, REQUEST,
   INTEGER(KIND=8) :: &
     COUNT8, DATATYPE8, DEST8, TAG8, COMM8, REQUEST8, IERROR8
 
-#:if allocate(type)
+#:if allocatable(type)
   ALLOCATE(DATA8(SIZE(DATA)))
 #:endif      
 
@@ -448,7 +455,7 @@ SUBROUTINE MPI_ISEND8_${type}$ (DATA, COUNT, DATATYPE, DEST, TAG, COMM, REQUEST,
   REQUEST = REQUEST8
   IERROR = IERROR8
 
-#:if allocate(type)
+#:if allocatable(type)
   DEALLOCATE(DATA8)
 #:endif
       
@@ -470,7 +477,7 @@ SUBROUTINE MPI_SEND8_${type} (DATA, COUNT, DATATYPE, DEST, TAG, COMM, IERROR)
   INTEGER(KIND=8) :: &
     COUNT8, DATATYPE8, DEST8, TAG8, COMM8, IERROR8
 
-#:if allocate(type)
+#:if allocatable(type)
   ALLOCATE(DATA8(SIZE(DATA)))
 #:endif
 
@@ -488,7 +495,7 @@ SUBROUTINE MPI_SEND8_${type} (DATA, COUNT, DATATYPE, DEST, TAG, COMM, IERROR)
 
   IERROR = IERROR8
 
-#:if allocate(type)
+#:if allocatable(type)
   DEALLOCATE(DATA8)
 #:endif
       
@@ -504,7 +511,7 @@ SUBROUTINE MPI_FILE_${method}$8_${type}$(FH, BUF, COUNT, DATATYPE, REQUEST, IERR
 
   INTEGER(KIND=JPIM), INTENT(IN) :: &
     FH, COUNT, DATATYPE
-  ${kind(type)}$, ${dimension(type)}$ INTENT(OUT) :: &
+  ${kind(type)}$, ${dim(type)}$ INTENT(OUT) :: &
     BUF
   INTEGER(KIND=JPIM), INTENT(OUT) :: &
     REQUEST, IERROR
@@ -515,7 +522,7 @@ SUBROUTINE MPI_FILE_${method}$8_${type}$(FH, BUF, COUNT, DATATYPE, REQUEST, IERR
   ${base_kind(type)}$(KIND=8), ${dim(type)}$ ${allocatable(type)}$ :: &
       BUF8
 
-#:if allocate(type)
+#:if allocatable(type)
   ALLOCATE(BUF8(SIZE(BUF)))
 #:endif
       
@@ -534,7 +541,7 @@ SUBROUTINE MPI_FILE_${method}$8_${type}$(FH, BUF, COUNT, DATATYPE, REQUEST, IERR
   REQUEST = REQUEST8
   IERROR = IERROR8
 
-#:if allocate(type)
+#:if allocatable(type)
   DEALLOCATE(BUF8)
 #:endif
       
@@ -557,7 +564,7 @@ SUBROUTINE MPI_FILE_${method}$8_${type}$(FH, BUF, COUNT, DATATYPE, STATUS, IERRO
   INTEGER(KIND=8) :: &
     FH8, COUNT8, DATATYPE8, IERROR8
 
-#:if allocate(type)
+#:if allocatable(type)
   ${kind(type)}$ ${dim(type)}$ ${allocatable(type)}$ :: &
       BUF8
 #:endif      
@@ -576,7 +583,7 @@ SUBROUTINE MPI_FILE_${method}$8_${type}$(FH, BUF, COUNT, DATATYPE, STATUS, IERRO
   STATUS = STATUS8
   IERROR = IERROR8
 
-#:if allocate(type)
+#:if allocatable(type)
   DEALLOCATE(BUF8)
 #:endif
 
@@ -598,7 +605,7 @@ SUBROUTINE MPI_FILE_${method}$8_${type}$(FH, BUF, COUNT, DATATYPE, STATUS, IERRO
   INTEGER(KIND=8) :: &
     FH8, COUNT8, DATATYPE8, IERROR8
 
-#:if allocate(type)
+#:if allocatable(type)
   ${base_kind(type)}$(KIND=8) ${dim(type)}$ ${allocatable(type)}$ :: &
       BUF8
 #:endif      
@@ -617,7 +624,7 @@ SUBROUTINE MPI_FILE_${method}$8_${type}$(FH, BUF, COUNT, DATATYPE, STATUS, IERRO
   STATUS = STATUS8
   IERROR = IERROR8
 
-#:if allocate(type)
+#:if allocatable(type)
   DEALLOCATE(BUF8)
 #:endif
 
@@ -641,7 +648,7 @@ SUBROUTINE MPI_FREAD_ORDERED_BEGIN8_${type}$(FH, BUF, COUNT, DATATYPE, IERROR)
   ${base_kind(type)}$(KIND=8), ${dim(type)}$ ${allocatable(type)}$  :: &
       BUF8
 
-#:if allocate(type)
+#:if allocatable(type)
    ALLOCATE(BUF8(SIZE(BUF)))
 #:endif
 #:if cast(type)
@@ -658,7 +665,7 @@ SUBROUTINE MPI_FREAD_ORDERED_BEGIN8_${type}$(FH, BUF, COUNT, DATATYPE, IERROR)
 #:if cast(type)
   BUF = BUF8
 #:endif
-#:if allocate(type)
+#:if allocatable(type)
   DEALLOCATE(BUF8)
 #:endif
       
@@ -697,7 +704,7 @@ SUBROUTINE MPI_FREAD_ORDERED_END8_${type}$(FH, BUF, STATUS, IERROR)
   STATUS = STATUS8
   IERROR = IERROR8
 
-#:if allocate(type)
+#:if allocatable(type)
   DEALLOCATE(BUF8)
 #:endif
       
@@ -715,7 +722,7 @@ SUBROUTINE MPI_FWRITE_ORDERED_BEGIN8_${type}$(FH, BUF, COUNT, DATATYPE, IERROR)
   INTEGER(KIND=8) :: &
     FH8, COUNT8, DATATYPE8, IERROR8
 
-#:if allocate(type)
+#:if allocatable(type)
   ${base_kind(type)}$(KIND=8), ${dim(type)}$ ${allocatable(type)}$ :: &
     BUF8
   ALLOCATE(BUF8(SIZE(BUF)))
@@ -733,7 +740,7 @@ SUBROUTINE MPI_FWRITE_ORDERED_BEGIN8_${type}$(FH, BUF, COUNT, DATATYPE, IERROR)
   BUF = BUF8
 #:endif
   IERROR = IERROR8
-#:if allocate(type)
+#:if allocatable(type)
   DEALLOCATE(BUF8)
 #:endif
       
@@ -753,7 +760,7 @@ SUBROUTINE MPI_FWRITE_ORDERED_END8_${type}$(FH, BUF, STATUS, IERROR)
   INTEGER(KIND=8) :: &
     FH8, IERROR8
 
-#:if def allocate(type)
+#:if  allocatable(type)
   ${base_kind(type)}$(KIND=8), ${dim(type)}$ ALLOCATABLE :: &
     BUF8
   ALLOCATE(BUF8(SIZE(BUF)))
@@ -770,7 +777,7 @@ SUBROUTINE MPI_FWRITE_ORDERED_END8_${type}$(FH, BUF, STATUS, IERROR)
   BUF = BUF8
 #:endif      
   IERROR = IERROR8
-#:if allocate(type)
+#:if allocatable(type)
   DEALLOCATE(BUF8)
 #:endif
       
@@ -786,7 +793,7 @@ END SUBROUTINE MPI_FWRITE_ORDERED_END8_${type}$
 SUBROUTINE MPI_GATHER8_${type}$(SENDDATA, SENDCOUNT, SENDTYPE, RECVAREA, &
                                 RECVCOUNT, RECVTYPE, ROOT, COMM, IERROR)
 
-  ${kind(type)}$, INTENT(IN) :: &
+=  ${kind(type)}$, INTENT(IN) :: &
     SENDDATA
   INTEGER(KIND=JPIM), INTENT(IN) :: &
     SENDCOUNT, SENDTYPE, RECVCOUNT, RECVTYPE, ROOT, COMM
@@ -846,7 +853,7 @@ SUBROUTINE MPI_GATHERV8_R8(SENDDATA, SENDCOUNT, SENDTYPE, RECVAREA, &
   INTEGER(KIND=8) :: &
     SENDCOUNT8, SENDTYPE8, RECVTYPE8, ROOT8, COMM8, IERROR8
 
-#:if allocate(type)
+#:if allocatable(type)
   ALLOCATE(SENDDATA8(SIZE(SENDDATA)))
 #:endif
   ALLOCATE(RECVCOUNTS8(SIZE(RECVCOUNTS)))
@@ -874,7 +881,7 @@ SUBROUTINE MPI_GATHERV8_R8(SENDDATA, SENDCOUNT, SENDTYPE, RECVAREA, &
 #:endif      
   IERROR = IERROR8
 
-#:if allocate(type)
+#:if allocatable(type)
   DEALLOCATE(SENDDATA8)
 #:endif
   DEALLOCATE(RECVCOUNTS8)
@@ -894,7 +901,7 @@ SUBROUTINE MPI_RECV8_${type}$(DATA, COUNT, DATATYPE, SOURCE, TAG, COMM, STATUS, 
 
   INTEGER(KIND=JPIM), INTENT(IN) :: &
     COUNT, DATATYPE, SOURCE, TAG, COMM
-  ${kind(type)}$, ${dim(types)}$ INTENT(OUT) :: &
+  ${kind(type)}$, ${dim(type)}$ INTENT(OUT) :: &
     DATA
   INTEGER(KIND=JPIM), DIMENSION(:), INTENT(OUT) :: &
     STATUS
@@ -906,7 +913,7 @@ SUBROUTINE MPI_RECV8_${type}$(DATA, COUNT, DATATYPE, SOURCE, TAG, COMM, STATUS, 
   INTEGER(KIND=8) :: &
     COUNT8, DATATYPE8, SOURCE8, TAG8, COMM8, IERROR8
 
-#:if allocate(type)
+#:if allocatable(type)
   ALLOCATE(DATA8(SIZE(DATA)))
   #TODO Check for dimension
   ALLOCATE(DATA8(SIZE(DATA,DIM=1),SIZE(DATA,DIM=2)))
@@ -928,7 +935,7 @@ SUBROUTINE MPI_RECV8_${type}$(DATA, COUNT, DATATYPE, SOURCE, TAG, COMM, STATUS, 
   STATUS = STATUS8
   IERROR = IERROR8
 
-#:if allocate(type)
+#:if allocatable(type)
   DEALLOCATE(DATA8)
 #:endif
 
@@ -945,14 +952,14 @@ SUBROUTINE MPI_IRECV8_${type}$(DATA, COUNT, DATATYPE, SOURCE, TAG, COMM, REQUEST
   INTEGER(KIND=JPIM), INTENT(OUT) :: &
     REQUEST, IERROR
 
-#:if allocate(type)
+#:if allocatable(type)
   ${base_kind(type)}$(KIND=8), ${dim(type)}$ ${allocatable(type)}$ :: &
     DATA8
 #:endif
   INTEGER(KIND=8) :: &
     COUNT8, DATATYPE8, SOURCE8, TAG8, COMM8, REQUEST8, IERROR8
 
-#:if allocate(type)
+#:if is_allocatable(type)
   ALLOCATE(DATA8(SIZE(DATA)))
   #! TODO
   ALLOCATE(DATA8(SIZE(DATA,DIM=1),SIZE(DATA,DIM=2)))
@@ -974,7 +981,7 @@ SUBROUTINE MPI_IRECV8_${type}$(DATA, COUNT, DATATYPE, SOURCE, TAG, COMM, REQUEST
   REQUEST = REQUEST8
   IERROR = IERROR8
 
-#:if allocate(type)
+#:if allocatable(type)
   DEALLOCATE(DATA8)
 #:endif
 
@@ -1011,7 +1018,7 @@ SUBROUTINE MPI_SCATTERV8_${type}$(SENDAREA, SENDCOUNTS, DISPLS, SENDTYPE, &
   INTEGER(KIND=8) :: &
     SENDTYPE8, RECVCOUNT8, RECVTYPE8, ROOT8, COMM8, IERROR8
 
-#:if allocate(type)
+#:if allocatable(type)
   ALLOCATE(SENDAREA8(SIZE(SENDAREA)))
   ALLOCATE(RECVDATA8(SIZE(RECVDATA)))
 #:endif
@@ -1032,7 +1039,7 @@ SUBROUTINE MPI_SCATTERV8_${type}$(SENDAREA, SENDCOUNTS, DISPLS, SENDTYPE, &
   CALL MPI_SCATTERV( &
       #{if cast(type)}# SENDAREA8 #{else}# SENDAREA #{endif}#, &
       SENDCOUNTS8, DISPLS8, SENDTYPE8, &
-      #{if cast(type)}}# RECVDATA8 #{else}# RECVDATA #{endif}#, &
+      #{if cast(type)}# RECVDATA8 #{else}# RECVDATA #{endif}#, &
       RECVCOUNT8, RECVTYPE8, ROOT8, COMM8, IERROR8)
 
 #:if cast(type)
@@ -1042,7 +1049,7 @@ SUBROUTINE MPI_SCATTERV8_${type}$(SENDAREA, SENDCOUNTS, DISPLS, SENDTYPE, &
 
   DEALLOCATE(SENDCOUNTS8)
   DEALLOCATE(DISPLS8)
-#:if allocate(type)
+#:if allocatable(type)
   DEALLOCATE(RECVDATA8)
   DEALLOCATE(SENDAREA8)
 #:endif

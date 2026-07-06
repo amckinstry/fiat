@@ -10,6 +10,49 @@
 
 MODULE MPL_RECV_MOD
 
+#:set types = ['REAL4','REAL8','INT','INT2', 'INT8', 'INT_SCALAR','REAL42', &
+      & 'REAL43','REAL82', 'CHAR_SCALAR','CHAR','REAL4_SCALAR','REAL8_SCALAR','REAL83' ] 
+
+#! kind, datatype , dimension, size
+#:set vdef = { & 
+      & 'REAL4' : ('REAL(KIND=JPRM)', 'MPI_REAL4', 1, '4_JPIB' ), &
+      & 'REAL8' : ('REAL(KIND=JPRD)',  'INT(MPI_REAL8)', 1, '8_JPIB'  ), &
+      & 'INT'  : ('INTEGER(KIND=JPIM)', 'INT(MPI_INTEGER)', 1,  '4_JPIB' ),  &
+      & 'INT2' : ('INTEGER(KIND=JPIM)',  'INT(MPI_INTEGER)', 1, '2_JPIB' ), &
+      & 'INT8' : ('INTEGER(KIND=JPIB)',  'INT(MPI_INTEGER8)', 1, '8_JPIB' ), &
+      & 'INT_SCALAR' : ('INTEGER(KIND=JPIM)',  'INT(MPI_INTEGER)', 0, '4_JPIB'), &
+      & 'REAL42' : ('REAL(KIND=JPRM)', 'INT(MPI_REAL4)', 2, '4_JPIB'),&
+      & 'REAL82' : ('REAL(KIND=JPRD)', 'INT(MPI_REAL8)', 2, '8_JPIB'  ), &
+      & 'REAL43' : ('REAL(KIND=JPRM)', 'INT(MPI_REAL4)', 3, '4_JPIB' ),&
+      & 'REAL83' : ('REAL(KIND=JPRD)',  'INT(MPI_REAL8)', 3, '8_JPIB'  ), &
+      & 'REAL4_SCALAR' : ('REAL(KIND=JPRM)',  'INT(MPI_REAL4)', 0, '4_JPIB'),&
+      & 'REAL8_SCALAR' : ('REAL(KIND=JPRD)',  'INT(MPI_REAL8)', 0, '8_JPIB'  ), &
+      & 'CHAR_SCALAR' : ('CHARACTER(LEN=*)',  'INT(MPI_BYTE)',0,'1_JPIB'), &
+      & 'CHAR' : ('CHARACTER(LEN=*)', 'INT(MPI_BYTE)', 0, '1_JPIB' ), &
+      &   }       
+
+#:def kind(type)
+  ${vdef[type][0]}$
+#:enddef
+
+#:def datatype(type)
+  ${vdef[type][1]}}$
+#:enddef
+
+#:def dim(type)
+  #: set typ = {0: '', 1: 'DIMENSION(:)',2:'DIMENSION(:,:)' }
+  #:set y = vdef[type][2]
+  ${typ[y]$
+#:enddef
+
+#:def dimension(type)
+   ${vdef[type][2]}$
+#:enddef
+
+#:def size(type)
+ ${vdef[type][3]}$
+#:enddef
+
 !**** MPL_RECV Receive a message
 
 !     Purpose.
@@ -75,8 +118,6 @@ USE MPL_NPROC_MOD
 
 IMPLICIT NONE
 
-#:set types = ['REAL4','REAL8','INT','INT2', 'INT8', 'INT_SCALAR','REAL42', &
-  & 'REAL43','REAL82', 'CHAR_SCALAR','CHAR','REAL4_SCALAR','REAL8_SCALAR','REAL83' ] 
 
 INTERFACE MPL_RECV
 
@@ -88,13 +129,20 @@ END INTERFACE MPL_RECV
 
 
 #:if defined('_CUDA')
-INTERFACE MPL_RECV_DECVICE
+
+#:set suffixes = [ '','_DEVICE']
+INTERFACE MPL_RECV_DEVICE
 
 #:for type in types
 MODULE PROCEDURE  MPL_RECV_${type}$_DEVICE
 #:endfor
 
+
 END INTERFACE MPL_RECV_DEVICE
+
+#:else
+#:set suffixes =[ '']
+
 
 #:endif
 
@@ -198,18 +246,98 @@ ENDIF
 
 END SUBROUTINE MPL_RECV_TAIL
 
-#define SUBNAME(NAME) NAME
-#define _ATTR_ 
-#include "mpl_recv_mod.body.h"
-#undef SUBNAME
-#undef _ATTR_
+#:for suffix in suffixes
 
-#:if defined('_CUDA')
-#define SUBNAME(NAME) NAME##_DEVICE
-#define _ATTR_ ,DEVICE
-#include "mpl_recv_mod.body.h"
-#undef SUBNAME
-#undef _ATTR_
+#:for type in types
+
+SUBROUTINE MPL_RECV_${type}$${suffix}$ (PBUF,KSOURCE,KTAG,KCOMM,KFROM,KRECVTAG,&
+ &KOUNT,KMP_TYPE,KERROR,KREQUEST,CDSTRING)
+
+
+#:if defined('USE_8_BYTE_WORDS')
+  USE MPI4TO8, ONLY : &
+    MPI_RECV => MPI_RECV8,  MPI_IRECV => MPI_IRECV8
 #:endif
+
+
+${kind(type)}$ ${dim(type)}$  #{if suffix=='_DEVICE'}# ,DEVICE #{endif}#   :: PBUF
+INTEGER(KIND=JPIM),INTENT(IN),OPTIONAL :: KTAG,KCOMM,KMP_TYPE,KSOURCE
+INTEGER(KIND=JPIM),INTENT(OUT),OPTIONAL :: KREQUEST,KERROR,KFROM,KRECVTAG,KOUNT
+CHARACTER(LEN=*),INTENT(IN),OPTIONAL :: CDSTRING
+
+INTEGER(KIND=JPIM) :: IBUFFSIZE,IMP_TYPE,ICOMM,IERROR 
+INTEGER(KIND=JPIM) :: ISOURCE,ITAG
+INTEGER(KIND=JPIM) :: IRECV_STATUS(MPI_STATUS_SIZE)
+LOGICAL :: LLABORT=.TRUE.
+INTEGER(KIND=JPIM) :: ITID
+REAL(KIND=JPRM)    :: ZDUM(1)
+ITID = OML_MY_THREAD()
+
+CALL MPL_RECV_PREAMB(IMP_TYPE,ICOMM,ISOURCE,ITAG,KMP_TYPE,KCOMM,KSOURCE,KTAG,KREQUEST)
+
+#:if dimension(type) == 0
+IBUFSIZE = 1
+#:else
+IBUFFSIZE = SIZE(PBUF)
+#:endif
+      
+#:if not defined('NAGFOR')
+IF (IBUFFSIZE > 0) THEN
+#:if dimension(type) == 1 
+  IF( (LOC(PBUF(UBOUND(PBUF,1))) - LOC(PBUF(LBOUND(PBUF,1)))) /= ${size(type)}$*(IBUFFSIZE - 1) ) THEN
+    CALL MPL_MESSAGE(CDMESSAGE='MPL_RECV: BUFFER NOT CONTIGUOUS ',LDABORT=LLABORT)
+  ENDIF
+#:endif
+#:if dimension(type) == 2      
+      IF( (LOC(PBUF(UBOUND(PBUF,1),UBOUND(PBUF,2))) - &
+     & LOC(PBUF(LBOUND(PBUF,1),LBOUND(PBUF,2)))) /= ${size(type)}$*(IBUFFSIZE - 1) ) THEN
+    CALL MPL_MESSAGE(CDMESSAGE='MPL_RECV: BUFFER NOT CONTIGUOUS ',LDABORT=LLABORT)
+  ENDIF
+#:endif
+#:if dimension(type) == 3      
+  IF( (LOC(PBUF(UBOUND(PBUF,1),UBOUND(PBUF,2),UBOUND(PBUF,3))) - &
+     & LOC(PBUF(LBOUND(PBUF,1),LBOUND(PBUF,2),LBOUND(PBUF,3)))) /= ${size((type)}$*(IBUFFSIZE - 1) ) THEN
+    CALL MPL_MESSAGE(CDMESSAGE='MPL_RECV: BUFFER NOT CONTIGUOUS ',LDABORT=LLABORT)
+  ENDIF
+#:endif      
+ENDIF
+#:endif
+
+IF(IBUFFSIZE == 0) THEN
+  IF(IMP_TYPE == JP_BLOCKING_STANDARD) THEN
+    CALL MPI_RECV(ZDUM(1),1,${size(type)}$,ISOURCE,ITAG,ICOMM,IRECV_STATUS,IERROR)
+  ELSEIF(IMP_TYPE == JP_BLOCKING_BUFFERED) THEN
+    CALL MPI_RECV(ZDUM(1),1,${size(type)}$,ISOURCE,ITAG,ICOMM,IRECV_STATUS,IERROR)
+  ELSEIF(IMP_TYPE == JP_NON_BLOCKING_STANDARD) THEN
+    CALL MPI_IRECV(ZDUM(1),1,${size(type)}$,ISOURCE,ITAG,ICOMM, &
+     & KREQUEST,IERROR)
+  ELSE
+    CALL MPL_MESSAGE(CDMESSAGE='MPL_RECV:ILLEGAL MP_TYPE ',LDABORT=LLABORT)
+  ENDIF
+ELSE
+  IF(IMP_TYPE == JP_BLOCKING_STANDARD) THEN
+    CALL MPI_RECV(PBUF(1),IBUFFSIZE,${size(type)}$,ISOURCE,ITAG,ICOMM,IRECV_STATUS,IERROR)
+  ELSEIF(IMP_TYPE == JP_BLOCKING_BUFFERED) THEN
+    CALL MPI_RECV(PBUF(1),IBUFFSIZE,${size(type)}$,ISOURCE,ITAG,ICOMM,IRECV_STATUS,IERROR)
+  ELSEIF(IMP_TYPE == JP_NON_BLOCKING_STANDARD) THEN
+    CALL MPI_IRECV(PBUF(1),IBUFFSIZE,${size(type)}$,ISOURCE,ITAG,ICOMM, &
+     & KREQUEST,IERROR)
+  ELSE
+    CALL MPL_MESSAGE(CDMESSAGE='MPL_RECV:ILLEGAL MP_TYPE ',LDABORT=LLABORT)
+  ENDIF
+ENDIF
+
+IF(IMP_TYPE /= JP_NON_BLOCKING_STANDARD) THEN
+  CALL MPL_RECV_TAIL(IRECV_STATUS,${size(type)}$,KFROM,KOUNT,KRECVTAG,KERROR,CDSTRING)
+ELSE
+  IF(LMPLSTATS) CALL MPL_RECVSTATS(IBUFFSIZE,${size(type)}$)
+ENDIF
+
+END SUBROUTINE MPL_RECV_${type}$${suffix}$
+
+#:endfor
+
+#:endfor
+
 
 END MODULE MPL_RECV_MOD

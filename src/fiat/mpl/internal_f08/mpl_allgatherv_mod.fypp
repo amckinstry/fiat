@@ -21,21 +21,21 @@ MODULE MPL_ALLGATHERV_MOD
      & }      
 
 #:def kind(type)
-  $vdef[type][0]$
+  ${vdef[type][0]}$
 #:enddef
 
 #:def datatype(type)
-  $vdef[type][1]$
-#:endif
+  ${vdef[type][1]}$
+#:enddef
 
 #:def senddim(type)
-  #: set typ = {'0': '', '1': 'DIMENSION(:)','2':'DIMENSION(:,:)' }
-  $typ[vdef[type][2]]$
+  #: set typ = {0: '', 1: 'DIMENSION(:)',2:'DIMENSION(:,:)' }
+  ${typ[vdef[type][2]]}$
 #:enddef
 
 #:def recvdim(type)
-  #: set typ = {'0': '', '1': 'DIMENSION(:)','2':'DIMENSION(:,:)' }
-  $typ[vdef[type][3]]$
+  #: set typ = {0: '', 1: 'DIMENSION(:)',2:'DIMENSION(:,:)' }
+  ${typ[vdef[type][3]]}$
 #:enddef
 
 
@@ -125,6 +125,8 @@ PUBLIC MPL_ALLGATHERV
 
 CONTAINS
 
+
+#:for type in types
 
 SUBROUTINE MPL_ALLGATHERV_${type}$(PSENDBUF,PRECVBUF,KRECVCOUNTS,KSENDCOUNT,KRECVDISPL, &
                             & KMP_TYPE,KCOMM,KERROR,KREQUEST,CDSTRING)

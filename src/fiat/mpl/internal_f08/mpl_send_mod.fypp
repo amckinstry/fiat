@@ -15,7 +15,7 @@ MODULE MPL_SEND_MOD
       & 'REAL4' : ('REAL(KIND=JPRM)', False, '0', 'MPI_REAL4', 1 ,'M' ), &
       & 'REAL8' : ('REAL(KIND=JPRD)', False, '8', 'INT(MPI_REAL8)', 1, 'I'  ), &
       & 'INT'  : ('INTEGER(KIND=JPIM)',False, '4', 'INT(MPI_INTEGER)', 1,'I' ),  &
-      & 'INT2' : ('INTEGER(KIND=JPIM)',False, '4', 'INT(MPI_INTEGER)' 2, 'I' ), &
+      & 'INT2' : ('INTEGER(KIND=JPIM)',False, '4', 'INT(MPI_INTEGER)', 2, 'I' ), &
       & 'INT8' : ('INTEGER(KIND=JPIB)',False, '8', 'INT(MPI_INTEGER8)',1,'I' ), &
       & 'INT_SCALAR' : ('INTEGER(KIND=JPIM)', True,  4, 'INT(MPI_INTEGER)',0,'I'), &
       & 'REAL42' : ('REAL(KIND=JPRM)', False, '42', 'INT(MPI_REAL4)', 2, 'I'),&
@@ -25,20 +25,23 @@ MODULE MPL_SEND_MOD
       & 'REAL4_SCALAR' : ('REAL(KIND=JPRM)', True, '4', 'INT(MPI_REAL4)', 0, 'I'),&
       & 'REAL8_SCALAR' : ('REAL(KIND=JPRD)', True, '8', 'INT(MPI_REAL8)', 0, 'I'  ), &
       & 'CHAR_SCALAR' : ('CHARACTER(LEN=*)', True, '8', 'INT(MPI_BYTE)',0,'I'), &
-      & 'CHAR' : ('CHARACTER(LEN=*)','-1', True, 'INT(MPI_BYTE); 1, 'I'), &
+      & 'CHAR' : ('CHARACTER(LEN=*)', True, '-1', 'INT(MPI_BYTE)', 1, 'I'), &
       &   }       
 
 #:set types = ['REAL4','REAL8','INT','INT2', 'INT8', 'INT_SCALAR','REAL42','REAL43','REAL82','CHAR_SCALAR','CHAR','REAL4_SCALAR','REAL8_SCALAR','REAL83' ]
 
-#:def kind(type)
-  $vdef[type][0]$
+
+#:def scalar(type)
+ ${vdef[type][1]}$
 #:enddef
 
 #:def not_contiguous(type)
-#:set typ { '0' : '.not. IS_CONTIGUOUS(PBUF)', &
+#:set typ = { '0' : '.not. IS_CONTIGUOUS(PBUF)', &
       &      '4': '(LOC(PBUF(UBOUND(PBUF,1))) - &
       &             LOC(PBUF(LBOUND(PBUF,1)))) /= 4_JPIB*(ICOUNT - 1))',&
       &      '8': '(LOC(PBUF(UBOUND(PBUF,1))) - &
+      &             LOC(PBUF(LBOUND(PBUF,1)))) /= 8_JPIB*(ICOUNT - 1)' }, &
+      &     'I8': '(LOC(PBUF(UBOUND(PBUF,1))) - &
       &             LOC(PBUF(LBOUND(PBUF,1)))) /= 8_JPIB*(ICOUNT - 1)' }, &
       &     '42': '(LOC(PBUF(UBOUND(PBUF,1),UBOUND(PBUF,2))) - &
       &              LOC(PBUF(LBOUND(PBUF,1),LBOUND(PBUF,2)))) &
@@ -53,33 +56,37 @@ MODULE MPL_SEND_MOD
       &              LOC(PBUF(LBOUND(PBUF,1),LBOUND(PBUF,2),LBOUND(PBUF,3)))) &
       &              /= _JPIB*(ICOUNT - 1) )', &
       & }
-      
-$typ[vdef[type][1]]$
+ ${typ[vdef[type][2]]}$
+#:enddef
+
+#:def kind(type) 
+  ${vdef[type][0]}$
 #:enddef
  
 #:def datatype(type)
-  $vdef[type][2]$
-#:endif
+  ${vdef[type][3]}$
+#:enddef
 
 #:def dim(type)
-  #: set typ = {'0': '', '1': 'DIMENSION(:)','2':'DIMENSION(:,:)' }
-  $typ[vdef[type][4]]$
+  #: set y = vdef[type][4]  
+  #: set typ = {0: '', 1: ',DIMENSION(:)',2:',DIMENSION(:,:)', 3:',DIMENSION(:,:,:)'}
+  ${typ[y]}$
 #:enddef
 
 #:def icommtype(type)
-#: set typ = {'M' : 'TYPE(MPI_COMM) , 'I' : 'INTEGER(KIND=JPIM) ' }
- $typ[vdef[type][5]]$
+#: set typ = {'M' : 'TYPE(MPI_COMM)' , 'I' : 'INTEGER(KIND=JPIM) ' }
+ ${typ[vdef[type][5]]}$
 #:enddef      
 
 #:def icomm(type)
 #: set typ = { 'M' : 'ICOMM%MPI_VAL', 'I': 'ICOMM' }
- $typ[vdef[type][5]]$
+ ${typ[vdef[type][5]]}$
 #:enddef
 
 #: def attr(suffix)
-#:set typ { '' : '', '_DEVICE': ',DEVICE' }
-     $typ[suffix]$
-#:endif
+#:set typ = { '' : '', '_DEVICE': ',DEVICE' }
+     ${typ[suffix]}$
+#:enddef
       
 !**** MPL_SEND Send a message
 
@@ -153,15 +160,20 @@ IMPLICIT NONE
       
 INTERFACE MPL_SEND
 
-#:for type in names
+#:for type in types
       MODULE PROCEDURE MPL_SEND_${type}$
 #:endfor
 
-#:if defined('_CUDA')      
-#:for type in names
+#:set suffixes = [ '' ]
+
+#:if defined('_CUDA')
+#:set suffixes = [ '', '_DEVICE']
+#:for type in types
       MODULE PROCEDURE MPL_SEND_${type}$_DEVICE
 #:endfor
-      
+
+#:endif
+
 END INTERFACE
 
 PRIVATE
@@ -175,11 +187,11 @@ PUBLIC MPL_SEND
 CONTAINS
 
 
-#: for suffix in ['', '_DEVICE']      
+#:for suffix in suffixes
 
-#: for type in types
+#:for type in types
       
-SUBROUTINE MPL_SEND_${type}${suffix}$(PBUF,KDEST,KTAG,KCOMM,KMP_TYPE,KERROR,KREQUEST,CDSTRING)
+SUBROUTINE MPL_SEND_${type}$${suffix}$(PBUF,KDEST,KTAG,KCOMM,KMP_TYPE,KERROR,KREQUEST,CDSTRING)
 
 #:if defined('USE_8_BYTE_WORDS')      
   USE MPI4TO8, ONLY : &
@@ -187,7 +199,7 @@ SUBROUTINE MPL_SEND_${type}${suffix}$(PBUF,KDEST,KTAG,KCOMM,KMP_TYPE,KERROR,KREQ
 #:endif
 
 ! real_m,intent(in) :: PBUF(:)
-${kind(type)}$  ${attr(suffix)}$ ${dim(type)}$      :: PBUF(:)
+${kind(type)}$  ${dim(type)}$ ${attr(suffix)}$ :: PBUF
 INTEGER(KIND=JPIM),INTENT(IN) :: KDEST,KTAG
 INTEGER(KIND=JPIM),INTENT(IN),OPTIONAL :: KCOMM,KMP_TYPE
 INTEGER(KIND=JPIM),INTENT(OUT),OPTIONAL :: KREQUEST,KERROR
@@ -232,9 +244,9 @@ IF(LMPLSTATS) THEN
 #! TODO check
 #:if type == 'REAL4'
       CALL MPL_SENDSTATS(ICOUNT, MPI_REAL4%MPI_VAL)
-#:else      
-      CALL MPL_SENDSTATS(ICOUNT,${datatype(type)}$)
-#:endif      
+#:else
+	CALL MPL_SENDSTATS(ICOUNT, ${datatype(type)}$ )
+#:endif	
 ENDIF
 
 IF (ICOUNT == 0) THEN
@@ -254,7 +266,7 @@ IF (ICOUNT == 0) THEN
 #:endif     
   ELSE IF(IMP_TYPE == JP_NON_BLOCKING_BUFFERED) THEN
 #! TODO Check
-#:if type == 'REAL4'`
+#:if type == 'REAL4'
     CALL MPI_IBSEND(DUM,ICOUNT,MPI_REAL4,KDEST-1,KTAG,ICOMM, &
       & IREQUEST_LOCAL,IERROR)
     KREQUEST=IREQUEST_LOCAL%MPI_VAL
@@ -311,7 +323,9 @@ ELSE
   IF(IERROR /= 0 ) CALL MPL_MESSAGE(CDMESSAGE='MPL_SEND',CDSTRING=CDSTRING,KERROR=IERROR,LDABORT=LLABORT)
 ENDIF
       
-END SUBROUTINE MPL_SEND_${type}${suffix}$
+END SUBROUTINE MPL_SEND_${type}$${suffix}$
+
+#:endfor
 
 #:endfor
 

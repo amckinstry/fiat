@@ -10,26 +10,38 @@
 
 MODULE MPL_ALLREDUCE_MOD
 
-#:set types_scalar = [''REAL8_SCALAR','REAL4_SCALAR','INT_SCALAR','INT8_SCALAR']
+#:set types_scalar = ['REAL8_SCALAR','REAL4_SCALAR','INT_SCALAR','INT8_SCALAR']
 #:set types_1d     = ['REAL4','REAL8', 'INT','INT8']
 #:set types_2d     = ['REAL4_2D','REAL8_2D']      
 
-#:set kind = { 'REAL4' : 'REAL(KIND=JPRM)', 'REAL8' : 'REAL(KIND=JPRD)', &
-      & 'INT' : 'INTEGER(KIND=JPIM)', 'INT8' : 'INTEGER(KIND=JPIB)' &
-      & 'REAL8_SCALAR' : 'REAL(KIND=JPRD)', 'REAL4_SCALAR' : 'REAL(KIND=JPRM)',&
-      & 'INT_SCALAR' : 'INTEGER(KIND=JPIM)', 'INT8_SCALAR' : 'INTEGER(KIND=JPIB)', &
-      & 'REAL4_2D' : 'REAL(KIND=JPRM)', 'REAL8_2D' : 'REAL(KIND=JPRD)' }
-      
-#:set size = { 'REAL4' : '4_JPIB', 'REAL8': '8_JPIB', :'INT' : '4_JPIB' , 'INT8' : '8_JPIB', &
-     & 'REAL4_SCALAR' : '4_JPIB', 'REAL8_SCALAR' : '8_JPIB', 'INT_SCALAR' : '4_JPIB', 'INT8_SCALAR' : '8_JPIB', &
-     & 'REAL4_2D' : '4_JPIB', 'REAL8_2D' : '8_JPIB' }
-      
-#:set datatype = { 'INT' : 'INT(MPI_INTEGER)', 'INT8' : 'INT(MPI_INTEGER8)', &
-     &     'REAL4' : 'INT(MPI_REAL4)', 'REAL8' : 'INT(MPI_REAL8)', &
-     &     'REAL4_2D' : 'INT(MPI_REAL4)' : 'REAL8_2D' : 'INT(MPI_REAL8)', &
-     &     'INT_SCALAR' : 'INT(MPI_INTEGER)', 'INT8_SCALAR' : 'INT(MPI_INTEGER8)', &
-     &     'REAL4_SCALAR' : 'INT(MPI_REAL4)', 'REAL8_SCALAR' : 'INT(MPI_REAL8)' }
-      
+
+#!  kind, size, datatype, dim
+#:set vdef = { 'REAL4' : ('REAL(KIND=JPRM)','4_JPIB', 'INT(MPI_REAL4)' ,1 ), &
+      & 'REAL8' : ('REAL(KIND=JPRD)','8_JPIB', 'INT(MPI_REAL8)',1 ), &
+      & 'INT' : ('INTEGER(KIND=JPIM)', '4_JPIB' , 'INT(MPI_INTEGER)', 1), &
+      & 'INT8' : ('INTEGER(KIND=JPIB)','8_JPIB', 'INT(MPI_INTEGER8)', 1 ), &
+      & 'REAL8_SCALAR' : ('REAL(KIND=JPRD)','8_JPIB', 'INT(MPI_REAL8)', 0 ),&
+      & 'REAL4_SCALAR' : ('REAL(KIND=JPRM)', '4_JPIB','INT(MPI_REAL4)', 0), &
+      & 'INT_SCALAR' : ('INTEGER(KIND=JPIM)', '4_JPIB', 'INT(MPI_INTEGER)',0  ), &
+      & 'INT8_SCALAR' : ('INTEGER(KIND=JPIB)', '8_JPIB', 'INT(MPI_INTEGER8)',0), &
+      & 'REAL4_2D' : ('REAL(KIND=JPRM)','4_JPIB', 'INT(MPI_REAL4)', 2), &
+      & 'REAL8_2D' : ('REAL(KIND=JPRD)', '8_JPIB' ,'INT(MPI_REAL8)', 2) }
+
+#:def kind(type)
+  ${vdef[type][0]}$
+#:enddef
+
+#:def size(type)
+  ${vdef[type][1]}$
+#:enddef
+#:def datatype(type)
+  ${vdef[type][2]}$
+#:enddef
+#:def dim(type)
+  #: set typ = {0: '', 1: 'DIMENSION(:)',2:'DIMENSION(:,:)' }
+  ${typ[vdef[type][3]]}$
+#:enddef
+
       
 !**** MPL_ALLREDUCE Perform collective communication
 
@@ -121,7 +133,7 @@ PUBLIC MPL_ALLREDUCE
 CONTAINS
 
 #:for type in types_scalar
-SUBROUTINE MPL_ALLREDUCE_{types}$(KSENDBUF,CDOPER,LDREPROD, &
+SUBROUTINE MPL_ALLREDUCE_${type}$(KSENDBUF,CDOPER,LDREPROD, &
                             & KCOMM,KERROR,CDSTRING)
 
 ${kind(type)}$  ${dim(type)}$ ,INTENT(INOUT)     :: PSENDBUF
@@ -142,7 +154,7 @@ END SUBROUTINE MPL_ALLREDUCE_${type}$
       
 
 #:for type in types_1d
-SUBROUTINE MPL_ALLREDUCE_${type})$(KSENDBUF,CDOPER,LDREPROD, &
+SUBROUTINE MPL_ALLREDUCE_${type}$(KSENDBUF,CDOPER,LDREPROD, &
       & KCOMM,KERROR,CDSTRING)
 
 #:if defined('USE_8_BYTE_WORDS')
@@ -199,11 +211,11 @@ ENDIF
 ISENDCOUNT = SIZE(PSENDBUF)
 
 #:if not defined('NAGFOR')
-IF (ISENDCOUNT > 0) THEN
-  IF( (LOC(PSENDBUF(UBOUND(PSENDBUF,1)))-LOC(PSENDBUF(LBOUND(PSENDBUF,1)))) /= ${size(type)}$*(ISENDCOUNT - 1) ) THEN
-    CALL MPL_MESSAGE(CDMESSAGE='MPL_ALLREDUCE: BUFFER NOT CONTIGUOUS ',LDABORT=LLABORT)
-  ENDIF
-ENDIF
+IF (ISENDCOUNT > 0) THEN IF(
+(LOC(PSENDBUF(UBOUND(PSENDBUF,1)))-LOC(PSENDBUF(LBOUND(PSENDBUF,1))))
+/= ${size(type)}$*(ISENDCOUNT - 1) ) THEN CALL
+MPL_MESSAGE(CDMESSAGE='MPL_ALLREDUCE: BUFFER NOT CONTIGUOUS
+',LDABORT=LLABORT) ENDIF ENDIF
 #:endif
 
 IF (LLREPRODSUM) THEN

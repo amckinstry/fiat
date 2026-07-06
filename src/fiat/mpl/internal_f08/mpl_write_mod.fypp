@@ -10,6 +10,7 @@
 
 MODULE MPL_WRITE_MOD
 
+#:set types = [ 'INT','REAL8']      
 !
 !     Purpose.  write to an MPIIO file 
 !     --------
@@ -90,13 +91,14 @@ PUBLIC MPL_WRITE
 
 CONTAINS
 
+      
 SUBROUTINE MPL_WRITE_INT(KFPTR,KOP,KBUF,KLEN,KREQ,KERROR)
 
 
 #:if defined('USE_8_BYTE_WORDS')
   USE MPI4TO8, ONLY : &
-#:for type in ['WRITE_SHARED','WRITE_ORDERED','IWRITE_SHARED','IWRITE_ORDERED_BEGIN','IWRITE_ORDERED_END']
-       MPI_FILE_${type}$ => MPI_FILE_${type}$8, &
+#:for method in ['WRITE_SHARED','WRITE_ORDERED','IWRITE_SHARED','IWRITE_ORDERED_BEGIN','IWRITE_ORDERED_END']
+       MPI_FILE_${method}$ => MPI_FILE_${method}$8, &
 #:endfor       
     MPI_WAIT => MPI_WAIT8
 #:endif
