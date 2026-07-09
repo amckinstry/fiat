@@ -10,6 +10,7 @@
 
 MODULE MPL_BYTES_MOD
 
+#:set base_type = { 'IM': 'INTEGER', 'IB': 'INTEGER', 'RM' : 'REAL' , 'RD' :'REAL'}
 
 USE EC_PARKIND, ONLY : JPIM, JPIB, JPRM, JPRD
 
@@ -29,8 +30,8 @@ CONTAINS
 
 #:for type in ['IM','IB','RM','RD']
 FUNCTION MPL_BYTES_${type}$(KVAR)
-INTEGER(KIND=JP${type}$), INTENT(IN) :: KVAR
-INTEGER(KIND=JPIM) MPL_BYTES_IM
+${base_type[type]}$(KIND=JP${type}$), INTENT(IN) :: KVAR
+INTEGER(KIND=JPIM) MPL_BYTES_${type}$
 MPL_BYTES_${type}$ = SIZE(TRANSFER(KVAR, (/'A'/)))
 END FUNCTION MPL_BYTES_${type}$
 #:endfor
