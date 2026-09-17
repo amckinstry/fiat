@@ -79,9 +79,20 @@ USE MPL_IOINIT_MOD
 
 IMPLICIT NONE
 
+#:set ranksuffs = ['2IM','2RD']
+
+#:def mpi_datatype(ranksuff)
+#: set typ = {'2IM' : 'MPI_INTEGER', '2RD': 'MPI_REAL8' }
+      ${typ[ranksuff]}$
+#:enddef
+#:def kind(ranksuff)
+#: set typ = {'2IM' : 'INTEGER(KIND=JPIM)', '2RD': 'REAL(KIND=JPRB)'' }
+      ${typ[ranksuff]}$
+#:enddef
+      
 INTERFACE MPL_READ
-#:for type in ['INT','REAL8']
-   MODULE PROCEDURE MPL_READ_${type}$
+#:for ranksuff in ranksuffs
+   MODULE PROCEDURE MPL_READ_${ranksuff}$
 #:endfor   
 END INTERFACE
 
@@ -90,7 +101,10 @@ PUBLIC MPL_READ
 
 CONTAINS
 
-SUBROUTINE MPL_READ_INT(KFPTR,KOP,KBUF,KLEN,KREQ,KERROR)
+
+
+#:for ranksuff in ranksuffs      
+SUBROUTINE MPL_READ_${ranksuff}$(KFPTR,KOP,BUF,KLEN,KREQ,KERROR)
 
 
 #:if defined('USE_8_BYTE_WORDS')
@@ -104,7 +118,8 @@ SUBROUTINE MPL_READ_INT(KFPTR,KOP,KBUF,KLEN,KREQ,KERROR)
 
 INTEGER(KIND=JPIM),INTENT(IN) :: KFPTR,KOP,KLEN
 INTEGER(KIND=JPIM),INTENT(OUT) :: KERROR
-INTEGER(KIND=JPIM) KBUF(:)
+!  REAL(KIND=JPRM) PBUF(:)  ! TODO CHECK THIS SHOULD BE JPRD, NO ?
+${kind(ranksuff)}$ BUF(:)      
 INTEGER(KIND=JPIM) KREQ
 
 
@@ -141,9 +156,9 @@ IF( KOP == 1 ) THEN
 ! blocking read, non collective, shared file pointer
         
   CALL MPI_FILE_READ_SHARED(KFPTR,&
-                           & KBUF,&
+                           & BUF,&
                            & KLEN,&
-                           & MPI_INTEGER,&
+                           & ${mpi_datatype(ranksuff)}$ ,& !
                            & STATUS,&
                            & KERROR)
 
@@ -152,9 +167,9 @@ ELSEIF( KOP == 2 ) THEN
 ! blocking read, collective, ordered with shared file pointer
 
   CALL MPI_FILE_READ_ORDERED(KFPTR,&
-                            & KBUF,&
+                            & BUF,&
                             & KLEN,&
-                            & MPI_INTEGER,&
+                            & ${mpi_datatype(ranksuff)}$,&
                             & STATUS,&
                             & KERROR)
 
@@ -163,9 +178,9 @@ ELSEIF( KOP == 3 ) THEN
 ! non blocking read, non collective, shared file pointer
 
   CALL MPI_FILE_IREAD_SHARED(KFPTR,&
-                            & KBUF,&
+                            & BUF,&
                             & KLEN,&
-                            & MPI_INTEGER,&
+                            &${mpi_datatype(ranksuff)}$,&
                             & KREQ,&
                             & KERROR)
 
@@ -174,9 +189,9 @@ ELSEIF( KOP == 4 ) THEN
 ! non blocking read, collective, ordered with shared file pointer
 
   CALL MPI_FILE_READ_ORDERED_BEGIN(KFPTR,&
-                                  & KBUF,&
+                                  & BUF,&
                                   & KLEN,&
-                                  & MPI_INTEGER,&
+                                  & ${mpi_datatype(ranksuff)}$,&
                                   & KERROR)
 
 ELSEIF( KOP == 5 ) THEN
@@ -188,126 +203,7 @@ ELSEIF( KOP == 5 ) THEN
 ELSEIF( KOP == 6 ) THEN
 
   CALL MPI_FILE_READ_ORDERED_END(KFPTR,&
-                                & KBUF,&
-                                & STATUS,&
-                                & KERROR)
- 
-ELSE
-
-  KERROR =-1
-  RETURN
-
-ENDIF
-
-#:else
-
-CALL ABOR1('MPL_READ_INT not build with MPI2')
-
-#:endif
-!
-!     -----------------------------------------------------------------
-RETURN
-END SUBROUTINE MPL_READ_INT
-
-SUBROUTINE MPL_READ_REAL8(KFPTR,KOP,PBUF,KLEN,KREQ,KERROR)
-
-
-#:if defined('USE_8_BYTE_WORDS')
-  USE MPI4TO8, ONLY : &
-    MPI_FILE_READ_SHARED => MPI_FILE_READ_SHARED8, &
-    MPI_FILE_READ_ORDERED => MPI_FILE_READ_ORDERED8, &
-    MPI_FILE_IREAD_SHARED => MPI_FILE_IREAD_SHARED8, &
-    MPI_FILE_READ_ORDERED_BEGIN => MPI_FILE_READ_ORDERED_BEGIN8, &
-    MPI_WAIT => MPI_WAIT8, MPI_FILE_READ_ORDERED_END => MPI_FILE_READ_ORDERED_END8
-#:endif
-
-INTEGER(KIND=JPIM),INTENT(IN) :: KFPTR,KOP,KLEN
-INTEGER(KIND=JPIM),INTENT(OUT) :: KERROR
-REAL(KIND=JPRM) PBUF(:)
-INTEGER(KIND=JPIM) KREQ
-
-
-INTEGER(KIND=JPIM) STATUS(MPI_STATUS_SIZE)
-!
-#:if not defined('MPI1')
-
-!     -----------------------------------------------------------------
-!
-!     1.    Preamble 
-!           --------
-
-IF( MPL_RANK > MPL_NUMIO ) THEN
-  KERROR = -1
-  RETURN
-ENDIF
-
-IF( KOP >= 1.AND.KOP <= 4 ) THEN
-
-  IF( KOP /= MPL_IOP ) THEN
-    KERROR = -1
-    RETURN
-  ENDIF
-
-ENDIF
-!     -----------------------------------------------------------------
-!
-!     2.    Check style and take appropriate action 
-!           ---------------------------------------
-
-
-IF( KOP == 1 ) THEN
-
-! blocking read, non collective, shared file pointer
-        
-  CALL MPI_FILE_READ_SHARED(KFPTR,&
-                           & PBUF,&
-                           & KLEN,&
-                           & MPI_REAL8,&
-                           & STATUS,&
-                           & KERROR)
-
-ELSEIF( KOP == 2 ) THEN
-
-! blocking read, collective, ordered with shared file pointer
-
-  CALL MPI_FILE_READ_ORDERED(KFPTR,&
-                            & PBUF,&
-                            & KLEN,&
-                            & MPI_REAL8,&
-                            & STATUS,&
-                            & KERROR)
-
-ELSEIF( KOP == 3 ) THEN
-
-! non blocking read, non collective, shared file pointer
-
-  CALL MPI_FILE_IREAD_SHARED(KFPTR,&
-                            & PBUF,&
-                            & KLEN,&
-                            & MPI_REAL8,&
-                            & KREQ,&
-                            & KERROR)
-
-ELSEIF( KOP == 4 ) THEN
-
-! non blocking read, collective, ordered with shared file pointer
-
-  CALL MPI_FILE_READ_ORDERED_BEGIN(KFPTR,&
-                                  & PBUF,&
-                                  & KLEN,&
-                                  & MPI_REAL8,&
-                                  & KERROR)
-
-ELSEIF( KOP == 5 ) THEN
-
-  CALL MPI_WAIT(KREQ,&
-              & STATUS,&
-              & KERROR )
-
-ELSEIF( KOP == 6 ) THEN
-
-  CALL MPI_FILE_READ_ORDERED_END(KFPTR,&
-                                & PBUF,&
+                                & BUF,&
                                 & STATUS,&
                                 & KERROR)
  
@@ -322,11 +218,13 @@ ENDIF
 !     -----------------------------------------------------------------
 #:else
 
-CALL ABOR1('MPL_READ_REAL8 not build with MPI2')
+CALL ABOR1('MPL_READ_${ranksuff}$ not build with MPI2')
 
 #:endif
 
 RETURN
-END SUBROUTINE MPL_READ_REAL8
+END SUBROUTINE MPL_READ_${ranksuff}$
 
+#:endfor
+      
 END MODULE MPL_READ_MOD

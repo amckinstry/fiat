@@ -1,20 +1,11 @@
-! (C) Copyright 2005- ECMWF.
-! (C) Copyright 2013- Meteo-France.
-! 
-! This software is licensed under the terms of the Apache Licence Version 2.0
-! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
-! In applying this licence, ECMWF does not waive the privileges and immunities
-! granted to it by virtue of its status as an intergovernmental organisation
-! nor does it submit to any jurisdiction.
-!
-
-#:set types = [ 'REAL4', 'REAL8', 'INTEGER' ]
-
-#:set kind = { 'REAL4' : 'REAL(KIND=JPRM)', 'REAL8' : 'REAL(KIND=JPRD)', 'INTEGER' : 'INTEGER(KIND=JPIM)' }
-
-#:set size = { 'REAL4': 'MPI_REAL4' , 'REAL8' : 'MPI_REAL8', 'INTEGER' : 'MPI_INTEGER' }
 
 
+#:set kind = { '2RM' : 'REAL(KIND=JPRM)', '2RD' : 'REAL(KIND=JPRD)', '2IM' : 'INTEGER(KIND=JPIM)' }
+
+#:set size = { '2RM': 'MPI_REAL4' , '2RD' : 'MPI_REAL8', '2IM' : 'MPI_INTEGER' }
+
+#:set ranksuffs = [ '2RM', '2RD', '2IM']
+      
 MODULE MPL_ALLTOALLV_MOD
 
 
@@ -91,8 +82,8 @@ USE OML_MOD,    ONLY : OML_MY_THREAD
    LOGICAL :: LLSCALAR
 
    INTERFACE MPL_ALLTOALLV
-#:for type in types
-      MODULE PROCEDURE MPL_ALLTOALLV_${type}$
+#:for ranksuff in ranksuffs
+      MODULE PROCEDURE MPL_ALLTOALLV_${ranksuff}$
 #:endfor
    END INTERFACE
 
@@ -214,9 +205,9 @@ ENDDO
 
 END SUBROUTINE MPL_ALLTOALLV_PREAMB
 
-#:for type in types
+#:for ranksuff in ranksuffs
 
-SUBROUTINE MPL_ALLTOALLV_${type}$(PSENDBUF,KSENDCOUNTS,PRECVBUF,KRECVCOUNTS,&
+SUBROUTINE MPL_ALLTOALLV_${ranksuff}$(PSENDBUF,KSENDCOUNTS,PRECVBUF,KRECVCOUNTS,&
  &KSENDDISPL,KRECVDISPL,KMP_TYPE,KCOMM,KERROR,KREQUEST,CDSTRING)
 
 
@@ -228,8 +219,8 @@ SUBROUTINE MPL_ALLTOALLV_${type}$(PSENDBUF,KSENDCOUNTS,PRECVBUF,KRECVCOUNTS,&
 
 IMPLICIT NONE
 INTEGER(KIND=JPIM), INTENT(IN) :: KSENDCOUNTS(:), KRECVCOUNTS(:)
-${kind[type]}$, INTENT(IN)  :: PSENDBUF(:)
-${kind[type]}$, INTENT(OUT) :: PRECVBUF(:)
+${kind[ranksuff]}$, INTENT(IN)  :: PSENDBUF(:)
+${kind[ranksuff]}$, INTENT(OUT) :: PRECVBUF(:)
 INTEGER(KIND=JPIM), INTENT(IN),OPTIONAL :: KSENDDISPL(:), KRECVDISPL(:), KCOMM ,KMP_TYPE
 CHARACTER(LEN=*),INTENT(IN),OPTIONAL :: CDSTRING
 INTEGER(KIND=JPIM),INTENT(OUT),OPTIONAL :: KREQUEST,KERROR
@@ -270,7 +261,7 @@ ENDIF
 
 ! defined for REAL4, INTEGER
       IERROR=0
-#:if type == 'REAL8'
+#:if ranksuff == 'REAL8'
       CALL MPL_ALLTOALLV_PREAMB(KSENDCOUNTS,ISENDDISPL,&
         & KRECVCOUNTS,IRECVDISPL,KSENDDISPL,KRECVDISPL,KMP_TYPE,KCOMM,CDSTRING)
       IF(IMP_TYPE == JP_BLOCKING_STANDARD .OR. IMP_TYPE == JP_BLOCKING_BUFFERED) THEN
@@ -289,11 +280,11 @@ ENDIF
       CALL MPL_ALLTOALLV_PREAMB(KSENDCOUNTS,ISENDDISPL,&
          & KRECVCOUNTS,IRECVDISPL,KSENDDISPL,KRECVDISPL,KMP_TYPE,KCOMM,CDSTRING)
       IF(IMP_TYPE == JP_BLOCKING_STANDARD .OR. IMP_TYPE == JP_BLOCKING_BUFFERED) THEN
-         CALL MPI_ALLTOALLV(PSENDBUF(:),KSENDCOUNTS,ISENDDISPL,${size[type]}$, &
-           & PRECVBUF(:),KRECVCOUNTS,IRECVDISPL,${size[type]}$,ICOMM,IERROR)
+         CALL MPI_ALLTOALLV(PSENDBUF(:),KSENDCOUNTS,ISENDDISPL,${size[ranksuff]}$, &
+           & PRECVBUF(:),KRECVCOUNTS,IRECVDISPL,${size[ranksuff]}$,ICOMM,IERROR)
       ELSEIF(IMP_TYPE == JP_NON_BLOCKING_STANDARD .OR. IMP_TYPE == JP_NON_BLOCKING_BUFFERED) THEN
-         CALL MPI_IALLTOALLV(PSENDBUF(:),KSENDCOUNTS,ISENDDISPL,${size[type]}$, &
-           & PRECVBUF(:),KRECVCOUNTS,IRECVDISPL,${size[type]}$,ICOMM,KREQUEST,IERROR)
+         CALL MPI_IALLTOALLV(PSENDBUF(:),KSENDCOUNTS,ISENDDISPL,${size[ranksuff]}$, &
+           & PRECVBUF(:),KRECVCOUNTS,IRECVDISPL,${size[ranksuff]}$,ICOMM,KREQUEST,IERROR)
           !!!   FIXME since the lifetime of IRECVDISPL and ISENDDISPL is limited to this routine
           !!! we have to complete MPI_WAIT right in place
           !!! Details: https://github.com/ecmwf-ifs/fiat/issues/17
@@ -316,11 +307,11 @@ ENDIF
       ENDIF
 
     IF(LMPLSTATS) THEN
-      CALL MPL_SENDSTATS(SUM(KSENDCOUNTS),${size[type]}$%MPI_VAL)
-      CALL MPL_RECVSTATS(SUM(KRECVCOUNTS),${size[type]}$%MPI_VAL)
+      CALL MPL_SENDSTATS(SUM(KSENDCOUNTS),${size[ranksuff]}$%MPI_VAL)
+      CALL MPL_RECVSTATS(SUM(KRECVCOUNTS),${size[ranksuff]}$%MPI_VAL)
     ENDIF
 
-END SUBROUTINE MPL_ALLTOALLV_${type}$
+END SUBROUTINE MPL_ALLTOALLV_${ranksuff}$
       
 #:endfor
 

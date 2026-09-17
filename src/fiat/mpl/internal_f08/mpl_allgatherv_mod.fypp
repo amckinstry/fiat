@@ -10,32 +10,33 @@
 
 MODULE MPL_ALLGATHERV_MOD
 
-#:set types = ['REAL4', 'REAL8', 'INT' ,'INT_SCALAR']
+#! :set types = [ 'REAL4', 'REAL8', 'INTEGER' ]
+#:set ranksuffs = ['2RM', '2RD', '2IM' ,'1IM']
 
-#! type: (kind, datatype , senddim, recvdim )
+#! ranksuff: (kind, datatype , senddim, recvdim )
 #:set vdef = { &
-      & 'REAL4' :     ('REAL(KIND=JPRM)',     'MPI_REAL4', 1 , 1 ), &
-      & 'REAL8' :     ('REAL(KIND=JPRD)',    'INT(MPI_REAL8)', 1, 1  ), &
-      & 'INT'  :      ('INTEGER(KIND=JPIM)', 'INT(MPI_INTEGER)', 1,1 ),  &
-     & 'INT_SCALAR' : ('INTEGER(KIND=JPIM)', 'INT(MPI_INTEGER)',0, 1), &
-     & }      
+      & '2RM' :     ('REAL(KIND=JPRM)',     'MPI_REAL4', 1 , 1 ), &
+      & '2RD' :     ('REAL(KIND=JPRD)',    'INT(MPI_REAL8)', 1, 1  ), &
+      & '2IM' :     ('INTEGER(KIND=JPIM)', 'INT(MPI_INTEGER)', 1,1 ), &
+      & '1IM' :     ('INTEGER(KIND=JPIM)', 'INT(MPI_INTEGER)',0, 1), &
+      & }      
 
-#:def kind(type)
-  ${vdef[type][0]}$
+#:def kind(ranksuff)
+  ${vdef[ranksuff][0]}$
 #:enddef
 
-#:def datatype(type)
-  ${vdef[type][1]}$
+#:def datatype(ranksuff)
+  ${vdef[ranksuff][1]}$
 #:enddef
 
-#:def senddim(type)
+#:def senddim(ranksuff)
   #: set typ = {0: '', 1: ',DIMENSION(:) ',2:',DIMENSION(:,:) ' }
-  ${typ[vdef[type][2]]}$
+  ${typ[vdef[ranksuff][2]]}$
 #:enddef
 
-#:def recvdim(type)
+#:def recvdim(ranksuff)
   #: set typ = {0: '', 1: ',DIMENSION(:)',2:',DIMENSION(:,:)' }
-  ${typ[vdef[type][3]]}$
+  ${typ[vdef[ranksuff][3]]}$
 #:enddef
 
 
@@ -116,8 +117,8 @@ LOGICAL   :: LLABORT=.TRUE.
 LOGICAL   :: LLBARRIER
 
 INTERFACE MPL_ALLGATHERV
-#:for type in types
-      MODULE PROCEDURE MPL_ALLGATHERV_${type}$
+#:for ranksuff in ranksuffs
+      MODULE PROCEDURE MPL_ALLGATHERV_${ranksuff}$
 #:endfor
 END INTERFACE
 
@@ -126,9 +127,9 @@ PUBLIC MPL_ALLGATHERV
 CONTAINS
 
 
-#:for type in types
+#:for ranksuff in ranksuffs
 
-SUBROUTINE MPL_ALLGATHERV_${type}$(PSENDBUF,PRECVBUF,KRECVCOUNTS,KSENDCOUNT,KRECVDISPL, &
+SUBROUTINE MPL_ALLGATHERV_${ranksuff}$(PSENDBUF,PRECVBUF,KRECVCOUNTS,KSENDCOUNT,KRECVDISPL, &
                             & KMP_TYPE,KCOMM,KERROR,KREQUEST,CDSTRING)
 
 
@@ -138,8 +139,8 @@ SUBROUTINE MPL_ALLGATHERV_${type}$(PSENDBUF,PRECVBUF,KRECVCOUNTS,KSENDCOUNT,KREC
 #:endif
 
 
-${kind(type)}$ ${senddim(type)}$  :: PSENDBUF
-${kind(type)}$ ${recvdim(type)}$  :: PRECVBUF
+${kind(ranksuff)}$ ${senddim(ranksuff)}$  :: PSENDBUF
+${kind(ranksuff)}$ ${recvdim(ranksuff)}$  :: PRECVBUF
 INTEGER(KIND=JPIM),INTENT(IN) :: KRECVCOUNTS(:)
 INTEGER(KIND=JPIM),INTENT(IN),OPTIONAL :: KSENDCOUNT
 INTEGER(KIND=JPIM),INTENT(IN),OPTIONAL :: KRECVDISPL(:),KCOMM,KMP_TYPE
@@ -156,7 +157,7 @@ ITID = OML_MY_THREAD()
 IF(PRESENT(KSENDCOUNT)) THEN
   ISENDCOUNT = KSENDCOUNT
 ELSE
-#:if type == 'INT_SCALAR'
+#:if ranksuff == 'INT_SCALAR'
   ISENDCOUNT = 1
 #:else
   ISENDCOUNT = SIZE(PSENDBUF)
@@ -200,15 +201,15 @@ ENDIF
 IERROR=0
       
 IF(IMP_TYPE == JP_BLOCKING_STANDARD .OR. IMP_TYPE == JP_BLOCKING_BUFFERED) THEN
-  CALL MPI_ALLGATHERV(PSENDBUF,ISENDCOUNT,${datatype(type)}$,PRECVBUF,&
-   & KRECVCOUNTS,IRECVDISPL,${datatype(type)}$,ICOMM,IERROR)
+  CALL MPI_ALLGATHERV(PSENDBUF,ISENDCOUNT,${datatype(ranksuff)}$,PRECVBUF,&
+   & KRECVCOUNTS,IRECVDISPL,${datatype(ranksuff)}$,ICOMM,IERROR)
 ELSEIF(IMP_TYPE == JP_NON_BLOCKING_STANDARD .OR. IMP_TYPE == JP_NON_BLOCKING_BUFFERED) THEN
-  CALL MPI_IALLGATHERV(PSENDBUF,ISENDCOUNT,${datatype(type)}$,PRECVBUF,&
-   & KRECVCOUNTS,IRECVDISPL,${datatype(type)}$,ICOMM,KREQUEST,IERROR)
+  CALL MPI_IALLGATHERV(PSENDBUF,ISENDCOUNT,${datatype(ranksuff)}$,PRECVBUF,&
+   & KRECVCOUNTS,IRECVDISPL,${datatype(ranksuff)}$,ICOMM,KREQUEST,IERROR)
 ENDIF
 IF(LMPLSTATS) THEN
-  CALL MPL_SENDSTATS(ISENDCOUNT,${datatype(type)}$)
-  CALL MPL_RECVSTATS(SUM(KRECVCOUNTS),${datatype(type)}$)
+  CALL MPL_SENDSTATS(ISENDCOUNT,${datatype(ranksuff)}$)
+  CALL MPL_RECVSTATS(SUM(KRECVCOUNTS),${datatype(ranksuff)}$)
 ENDIF
 
 IF(MPL_OUTPUT > 1 )THEN
@@ -221,7 +222,7 @@ ELSE
 ENDIF
 DEALLOCATE(IRECVDISPL)
 
-END SUBROUTINE MPL_ALLGATHERV_${type}$
+END SUBROUTINE MPL_ALLGATHERV_${ranksuff}$
 
 #:endfor
       

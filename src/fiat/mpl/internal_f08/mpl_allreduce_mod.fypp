@@ -10,36 +10,36 @@
 
 MODULE MPL_ALLREDUCE_MOD
 
-#:set types_scalar = ['REAL8_SCALAR','REAL4_SCALAR','INT_SCALAR','INT8_SCALAR']
-#:set types_1d     = ['REAL4','REAL8', 'INT','INT8']
-#:set types_2d     = ['REAL4_2D','REAL8_2D']      
+#:set ranksuffs_scalar = ['1RD', '1RM', '1IM', '1IB']
+#:set ranksuffs_1d     = ['2RM','2RD', '2IM','2IB']
+#:set ranksuffs_2d     = ['2RM','3RD']      
 
 
 #!  kind, size, datatype, dim
-#:set vdef = { 'REAL4' : ('REAL(KIND=JPRM)','4_JPIB', 'INT(MPI_REAL4)' ,1 ), &
-      & 'REAL8' : ('REAL(KIND=JPRD)','8_JPIB', 'INT(MPI_REAL8)',1 ), &
-      & 'INT' : ('INTEGER(KIND=JPIM)', '4_JPIB' , 'INT(MPI_INTEGER)', 1), &
-      & 'INT8' : ('INTEGER(KIND=JPIB)','8_JPIB', 'INT(MPI_INTEGER8)', 1 ), &
-      & 'REAL8_SCALAR' : ('REAL(KIND=JPRD)','8_JPIB', 'INT(MPI_REAL8)', 0 ),&
-      & 'REAL4_SCALAR' : ('REAL(KIND=JPRM)', '4_JPIB','INT(MPI_REAL4)', 0), &
-      & 'INT_SCALAR' : ('INTEGER(KIND=JPIM)', '4_JPIB', 'INT(MPI_INTEGER)',0  ), &
-      & 'INT8_SCALAR' : ('INTEGER(KIND=JPIB)', '8_JPIB', 'INT(MPI_INTEGER8)',0), &
-      & 'REAL4_2D' : ('REAL(KIND=JPRM)','4_JPIB', 'INT(MPI_REAL4)', 2), &
-      & 'REAL8_2D' : ('REAL(KIND=JPRD)', '8_JPIB' ,'INT(MPI_REAL8)', 2) }
+#:set vdef = { '2RM' : ('REAL(KIND=JPRM)','4_JPIB', 'INT(MPI_REAL4)' ,1 ), &
+      & '2RD' : ('REAL(KIND=JPRD)','8_JPIB', 'INT(MPI_REAL8)',1 ), &
+      & '2IM' : ('INTEGER(KIND=JPIM)', '4_JPIB' , 'INT(MPI_INTEGER)', 1), &
+      & '2IB' : ('INTEGER(KIND=JPIB)','8_JPIB', 'INT(MPI_INTEGER8)', 1 ), &
+      & '1RD' : ('REAL(KIND=JPRD)','8_JPIB', 'INT(MPI_REAL8)', 0 ),&
+      & '1RM' : ('REAL(KIND=JPRM)', '4_JPIB','INT(MPI_REAL4)', 0), &
+      & '1IM' : ('INTEGER(KIND=JPIM)', '4_JPIB', 'INT(MPI_INTEGER)',0  ), &
+      & '1IB' : ('INTEGER(KIND=JPIB)', '8_JPIB', 'INT(MPI_INTEGER8)',0), &
+      & '3RM' : ('REAL(KIND=JPRM)','4_JPIB', 'INT(MPI_REAL4)', 2), &
+      & '3RD' : ('REAL(KIND=JPRD)', '8_JPIB' ,'INT(MPI_REAL8)', 2) }
 
 #:def kind(type)
-  ${vdef[type][0]}$
+  ${vdef[ranksuff][0]}$
 #:enddef
 
-#:def size(type)
-  ${vdef[type][1]}$
+#:def size(ranksuff)
+  ${vdef[ranksuff][1]}$
 #:enddef
-#:def datatype(type)
-  ${vdef[type][2]}$
+#:def datatype(ranksuff)
+  ${vdef[ranksuff][2]}$
 #:enddef
-#:def dim(type)
+#:def dim(ranksuff)
   #: set typ = {0: '', 1: 'DIMENSION(:)',2:'DIMENSION(:,:)' }
-  ${typ[vdef[type][3]]}$
+  ${typ[vdef[ranksuff][3]]}$
 #:enddef
 
       
@@ -117,14 +117,14 @@ PRIVATE
 LOGICAL :: LLABORT=.TRUE.
 
 INTERFACE MPL_ALLREDUCE
-#:for type in types_scalar
-      MODULE PROCEDURE MPL_ALLREDUCE_${type}$
+#:for ranksuff in ranksuffs_scalar
+      MODULE PROCEDURE MPL_ALLREDUCE_${ranksuff}$
 #:endfor
-#:for type in types_1d
-      MODULE PROCEDURE MPL_ALLREDUCE_${type}$
+#:for ranksuff in ranksuffs_1d
+      MODULE PROCEDURE MPL_ALLREDUCE_${ranksuff}$
 #:endfor
-#:for type in types_2d
-      MODULE PROCEDURE MPL_ALLREDUCE_${type}$
+#:for ranksuff in ranksuffs_2d
+      MODULE PROCEDURE MPL_ALLREDUCE_${ranksuff}$
 #:endfor
 END INTERFACE
 
@@ -132,29 +132,29 @@ PUBLIC MPL_ALLREDUCE
 
 CONTAINS
 
-#:for type in types_scalar
-SUBROUTINE MPL_ALLREDUCE_${type}$(PSENDBUF,CDOPER,LDREPROD, &
+#:for ranksuff in ranksuffs_scalar
+SUBROUTINE MPL_ALLREDUCE_${ranksuff}$(PSENDBUF,CDOPER,LDREPROD, &
                             & KCOMM,KERROR,CDSTRING)
 
-${kind(type)}$  ${dim(type)}$ ,INTENT(INOUT)     :: PSENDBUF
+${kind(ranksuff)}$  ${dim(ranksuff)}$ ,INTENT(INOUT)     :: PSENDBUF
 CHARACTER(LEN=*),INTENT(IN)    :: CDOPER
 LOGICAL,INTENT(IN),OPTIONAL :: LDREPROD
 INTEGER(KIND=JPIM),INTENT(IN),OPTIONAL :: KCOMM
 INTEGER(KIND=JPIM),INTENT(OUT),OPTIONAL :: KERROR
 CHARACTER(LEN=*),INTENT(IN),OPTIONAL :: CDSTRING
-${kind(type)}$ ISENDBUF(1)
+${kind(ranksuff)}$ ISENDBUF(1)
 
 ISENDBUF(1) = PSENDBUF
 CALL MPL_ALLREDUCE(ISENDBUF,CDOPER,LDREPROD,KCOMM,KERROR,CDSTRING)
 PSENDBUF = ISENDBUF(1)
 
-END SUBROUTINE MPL_ALLREDUCE_${type}$
+END SUBROUTINE MPL_ALLREDUCE_${ranksuff}$
 
 #:endfor
       
 
-#:for type in types_1d
-SUBROUTINE MPL_ALLREDUCE_${type}$(PSENDBUF,CDOPER,LDREPROD, &
+#:for ranksuff in ranksuffs_1d
+SUBROUTINE MPL_ALLREDUCE_${ranksuff}$(PSENDBUF,CDOPER,LDREPROD, &
       & KCOMM,KERROR,CDSTRING)
 
 #:if defined('USE_8_BYTE_WORDS')
@@ -162,7 +162,7 @@ SUBROUTINE MPL_ALLREDUCE_${type}$(PSENDBUF,CDOPER,LDREPROD, &
     MPI_ALLREDUCE => MPI_ALLREDUCE8
 #:endif
 
-${kind(type)}$ ,INTENT(INOUT)     :: PSENDBUF(:)
+${kind(ranksuff)}$ ,INTENT(INOUT)     :: PSENDBUF(:)
 CHARACTER(LEN=*),INTENT(IN)    :: CDOPER
 LOGICAL,INTENT(IN),OPTIONAL :: LDREPROD
 INTEGER(KIND=JPIM),INTENT(IN),OPTIONAL :: KCOMM
@@ -215,7 +215,7 @@ ISENDCOUNT = SIZE(PSENDBUF)
 #:if not defined('NAGFOR')
 ! IF (ISENDCOUNT > 0) THEN IF(
 ! (LOC(PSENDBUF(UBOUND(PSENDBUF,1)))-LOC(PSENDBUF(LBOUND(PSENDBUF,1))))
-! /= ${size(type)}$*(ISENDCOUNT - 1) ) THEN CALL
+! /= ${size(ranksuff)}$*(ISENDCOUNT - 1) ) THEN CALL
 ! MPL_MESSAGE(CDMESSAGE='MPL_ALLREDUCE: BUFFER NOT CONTIGUOUS
 ! ',LDABORT=LLABORT) ENDIF ENDIF
 #:endif
@@ -244,12 +244,12 @@ ISENDCOUNT = SIZE(PSENDBUF)
 !   CALL MPL_BROADCAST(PRECVBUF,KTAG=ITAG,KCOMM=ICOMM,KROOT=1,KERROR=IERROR)
 ! ELSE  
   IF ( MPL_NUMPROC > 1 ) &
-  CALL MPI_ALLREDUCE(PSENDBUF,PRECVBUF,ISENDCOUNT,${datatype(type)}$, &
+  CALL MPI_ALLREDUCE(PSENDBUF,PRECVBUF,ISENDCOUNT,${datatype(ranksuff)}$, &
                   &  IOPER,ICOMM,IERROR)
 
   IF(LMPLSTATS) THEN
-    CALL MPL_SENDSTATS(ISENDCOUNT,${datatype(type)}$)
-    CALL MPL_RECVSTATS(ISENDCOUNT,${datatype(type)}$)
+    CALL MPL_SENDSTATS(ISENDCOUNT,${datatype(ranksuff)}$)
+    CALL MPL_RECVSTATS(ISENDCOUNT,${datatype(ranksuff)}$)
   ENDIF
 
 ! ENDIF
@@ -268,8 +268,8 @@ CALL MPI_ALLREDUCE(PSENDBUF,PRECVBUF,ISENDCOUNT,INT(MPI_INTEGER), &
                 &  IOPER,ICOMM,IERROR)
 
 IF(LMPLSTATS) THEN
-  CALL MPL_SENDSTATS(ISENDCOUNT,${datatype(type)}$)
-  CALL MPL_RECVSTATS(ISENDCOUNT,${datatype(type)}$)
+  CALL MPL_SENDSTATS(ISENDCOUNT,${datatype(ranksuff)}$)
+  CALL MPL_RECVSTATS(ISENDCOUNT,${datatype(ranksuff)}$)
 ENDIF
 
 IF(MPL_OUTPUT > 1 )THEN
@@ -285,14 +285,14 @@ IF ( MPL_NUMPROC > 1 ) &
 PSENDBUF(:) = PRECVBUF(:)
 DEALLOCATE(PRECVBUF)
 
-END SUBROUTINE MPL_ALLREDUCE_${type}$
+END SUBROUTINE MPL_ALLREDUCE_${ranksuff}$
 
 #:endfor
-#!  end of types_1d      
+#!  end of ranksuffs_1d      
 
       
-#:for type in types_2d      
-SUBROUTINE MPL_ALLREDUCE_${type}$ (PSENDBUF,CDOPER,LDREPROD, &
+#:for ranksuff in ranksuffs_2d      
+SUBROUTINE MPL_ALLREDUCE_${ranksuff}$ (PSENDBUF,CDOPER,LDREPROD, &
                             & KCOMM,KERROR,CDSTRING)
 
 
@@ -301,13 +301,13 @@ SUBROUTINE MPL_ALLREDUCE_${type}$ (PSENDBUF,CDOPER,LDREPROD, &
     MPI_ALLREDUCE => MPI_ALLREDUCE8
 #:endif
 
-${kind(type)}$ ,INTENT(INOUT)        :: PSENDBUF(:,:)
+${kind(ranksuff)}$ ,INTENT(INOUT)        :: PSENDBUF(:,:)
 CHARACTER(LEN=*),INTENT(IN)    :: CDOPER
 LOGICAL,INTENT(IN),OPTIONAL :: LDREPROD
 INTEGER(KIND=JPIM),INTENT(IN),OPTIONAL :: KCOMM
 INTEGER(KIND=JPIM),INTENT(OUT),OPTIONAL :: KERROR
 CHARACTER(LEN=*),INTENT(IN),OPTIONAL :: CDSTRING
-${kind(type)}$            :: PRECVBUF(SIZE(PSENDBUF(:,1)),SIZE(PSENDBUF(1,:)))
+${kind(ranksuff)}$            :: PRECVBUF(SIZE(PSENDBUF(:,1)),SIZE(PSENDBUF(1,:)))
 INTEGER(KIND=JPIM) ITAG, ICOUNT
 LOGICAL LLREPRODSUM
 INTEGER(KIND=JPIM) :: ISENDCOUNT,ICOMM,IERROR,IOPER
@@ -348,7 +348,7 @@ ENDIF
 ISENDCOUNT = SIZE(PSENDBUF)
 !#ifndef NAGFOR
 !IF (ISENDCOUNT > 0) THEN
-!  IF( (LOC(PSENDBUF(UBOUND(PSENDBUF,1)))-LOC(PSENDBUF(LBOUND(PSENDBUF,1)))) /= ${size(type)}$*(ISENDCOUNT - 1) ) THEN
+!  IF( (LOC(PSENDBUF(UBOUND(PSENDBUF,1)))-LOC(PSENDBUF(LBOUND(PSENDBUF,1)))) /= ${size(ranksuff)}$*(ISENDCOUNT - 1) ) THEN
 !    CALL MPL_MESSAGE(CDMESSAGE='MPL_ALLREDUCE: BUFFER NOT CONTIGUOUS ',LDABORT=LLABORT)
 !  ENDIF
 !ENDIF
@@ -396,12 +396,12 @@ ISENDCOUNT = SIZE(PSENDBUF)
 
 !ELSE
   IF ( MPL_NUMPROC > 1 ) &
-  CALL MPI_ALLREDUCE(PSENDBUF,PRECVBUF,ISENDCOUNT,${datatype(type)}$, &
+  CALL MPI_ALLREDUCE(PSENDBUF,PRECVBUF,ISENDCOUNT,${datatype(ranksuff)}$, &
                   &  IOPER,ICOMM,IERROR)
 
   IF(LMPLSTATS) THEN
-    CALL MPL_SENDSTATS(ISENDCOUNT,${datatype(type)}$)
-    CALL MPL_RECVSTATS(ISENDCOUNT,${datatype(type)}$)
+    CALL MPL_SENDSTATS(ISENDCOUNT,${datatype(ranksuff)}$)
+    CALL MPL_RECVSTATS(ISENDCOUNT,${datatype(ranksuff)}$)
   ENDIF
 
 !ENDIF
@@ -418,7 +418,7 @@ ENDIF
 IF ( MPL_NUMPROC > 1 ) &
 PSENDBUF(:,:) = PRECVBUF(:,:)
 
-END SUBROUTINE MPL_ALLREDUCE_${type}$
+END SUBROUTINE MPL_ALLREDUCE_${ranksuff}$
 
 #:endfor
 

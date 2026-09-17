@@ -10,7 +10,6 @@
 
 MODULE MPL_WRITE_MOD
 
-#:set types = [ 'INT','REAL8']      
 !
 !     Purpose.  write to an MPIIO file 
 !     --------
@@ -80,9 +79,20 @@ USE MPL_IOINIT_MOD
 
 IMPLICIT NONE
 
+#:set ranksuffs = [ '2IM','2RD']
+
+#:def mpi_datatype(ranksuff)
+#: set typ = {'2IM' : 'MPI_INTEGER', '2RD': 'MPI_REAL8' }
+      ${typ[ranksuff]}$
+#:enddef
+#:def kind(ranksuff)
+#: set typ = {'2IM' : 'INTEGER(KIND=JPIM)', '2RD': 'REAL(KIND=JPRB)'' }
+      ${typ[ranksuff]}$
+#:enddef
+
 INTERFACE MPL_WRITE
-#:for type in ['INT','REAL8']
-   MODULE PROCEDURE MPL_WRITE_${type}$
+#:for ranksuff in ranksuffs
+   MODULE PROCEDURE MPL_WRITE_${ranksuff}$
 #:endfor   
 END INTERFACE
 
@@ -91,8 +101,8 @@ PUBLIC MPL_WRITE
 
 CONTAINS
 
-      
-SUBROUTINE MPL_WRITE_INT(KFPTR,KOP,KBUF,KLEN,KREQ,KERROR)
+#:for ranksuff in ranksuffs
+SUBROUTINE MPL_WRITE_${ranksuff}$(KFPTR,KOP,BUF,KLEN,KREQ,KERROR)
 
 
 #:if defined('USE_8_BYTE_WORDS')
@@ -105,7 +115,7 @@ SUBROUTINE MPL_WRITE_INT(KFPTR,KOP,KBUF,KLEN,KREQ,KERROR)
 
 INTEGER(KIND=JPIM),INTENT(IN) :: KFPTR,KOP,KLEN
 INTEGER(KIND=JPIM),INTENT(OUT) :: KERROR
-INTEGER(KIND=JPIM) KBUF(:)
+${kind(ranksuff)}$ BUF(:)
 INTEGER(KIND=JPIM) KREQ
 
 
@@ -142,9 +152,9 @@ IF( KOP == 1 ) THEN
 ! blocking write, non collective, shared file pointer
         
   CALL MPI_FILE_WRITE_SHARED(KFPTR,&
-                           & KBUF,&
+                           & BUF,&
                            & KLEN,&
-                           & MPI_INTEGER,&
+                           & ${mpi_datatype(ranksuff)}$,&
                            & STATUS,&
                            & KERROR)
 
@@ -153,9 +163,9 @@ ELSEIF( KOP == 2 ) THEN
 ! blocking write, collective, ordered with shared file pointer
 
   CALL MPI_FILE_WRITE_ORDERED(KFPTR,&
-                            & KBUF,&
+                            & BUF,&
                             & KLEN,&
-                            & MPI_INTEGER,&
+                            & ${mpi_datatype(ranksuff)}$,&
                             & STATUS,&
                             & KERROR)
 
@@ -164,9 +174,9 @@ ELSEIF( KOP == 3 ) THEN
 ! non blocking write, non collective, shared file pointer
 
   CALL MPI_FILE_IWRITE_SHARED(KFPTR,&
-                            & KBUF,&
+                            & BUF,&
                             & KLEN,&
-                            & MPI_INTEGER,&
+                            & ${mpi_datatype(ranksuff)}$,&
                             & KREQ,&
                             & KERROR)
 
@@ -175,9 +185,9 @@ ELSEIF( KOP == 4 ) THEN
 ! non blocking write, collective, ordered with shared file pointer
 
   CALL MPI_FILE_WRITE_ORDERED_BEGIN(KFPTR,&
-                                  & KBUF,&
+                                  & BUF,&
                                   & KLEN,&
-                                  & MPI_INTEGER,&
+                                  & ${mpi_datatype(ranksuff)}$,&
                                   & KERROR)
 
 ELSEIF( KOP == 5 ) THEN
@@ -189,7 +199,7 @@ ELSEIF( KOP == 5 ) THEN
 ELSEIF( KOP == 6 ) THEN
 
   CALL MPI_FILE_WRITE_ORDERED_END(KFPTR,&
-                                & KBUF,&
+                                & BUF,&
                                 & STATUS,&
                                 & KERROR)
  
@@ -202,133 +212,14 @@ ENDIF
 
 #:else
 
-CALL ABOR1('MPL_WRITE_INT not built with MPI2')
+CALL ABOR1('MPL_WRITE_RANKSUFF not built with MPI2')
 
 #:endif
 !
 !     -----------------------------------------------------------------
 RETURN
-END SUBROUTINE MPL_WRITE_INT
+END SUBROUTINE MPL_WRITE_${ranksuff}$
 
-SUBROUTINE MPL_WRITE_REAL8(KFPTR,KOP,PBUF,KLEN,KREQ,KERROR)
-
-
-#:if defined('USE_8_BYTE_WORDS')
-  USE MPI4TO8, ONLY : &
-    MPI_FILE_WRITE_SHARED => MPI_FILE_WRITE_SHARED8, &
-    MPI_FILE_WRITE_ORDERED => MPI_FILE_WRITE_ORDERED8, &
-    MPI_FILE_IWRITE_SHARED => MPI_FILE_IWRITE_SHARED8, &
-    MPI_FILE_WRITE_ORDERED_BEGIN => MPI_FILE_WRITE_ORDERED_BEGIN8, &
-    MPI_WAIT => MPI_WAIT8, &
-    MPI_FILE_WRITE_ORDERED_END => MPI_FILE_WRITE_ORDERED_END8
-#:endif
-
-INTEGER(KIND=JPIM),INTENT(IN) :: KFPTR,KOP,KLEN
-INTEGER(KIND=JPIM),INTENT(OUT) :: KERROR
-REAL(KIND=JPRM) PBUF(:)
-INTEGER(KIND=JPIM) KREQ
-
-
-INTEGER(KIND=JPIM) STATUS(MPI_STATUS_SIZE)
-!
-#:if  not defined('MPI1')
-
-!     -----------------------------------------------------------------
-!
-!     1.    Preamble 
-!           --------
-
-IF( MPL_RANK > MPL_NUMIO ) THEN
-  KERROR = -1
-  RETURN
-ENDIF
-
-IF( KOP >= 1.AND.KOP <= 4 ) THEN
-
-  IF( KOP /= MPL_IOP ) THEN
-    KERROR = -1
-    RETURN
-  ENDIF
-
-ENDIF
-!     -----------------------------------------------------------------
-!
-!     2.    Check style and take appropriate action 
-!           ---------------------------------------
-
-
-IF( KOP == 1 ) THEN
-
-! blocking write, non collective, shared file pointer
-        
-  CALL MPI_FILE_WRITE_SHARED(KFPTR,&
-                           & PBUF,&
-                           & KLEN,&
-                           & MPI_REAL8,&
-                           & STATUS,&
-                           & KERROR)
-
-ELSEIF( KOP == 2 ) THEN
-
-! blocking write, collective, ordered with shared file pointer
-
-  CALL MPI_FILE_WRITE_ORDERED(KFPTR,&
-                            & PBUF,&
-                            & KLEN,&
-                            & MPI_REAL8,&
-                            & STATUS,&
-                            & KERROR)
-
-ELSEIF( KOP == 3 ) THEN
-
-! non blocking write, non collective, shared file pointer
-
-  CALL MPI_FILE_IWRITE_SHARED(KFPTR,&
-                            & PBUF,&
-                            & KLEN,&
-                            & MPI_REAL8,&
-                            & KREQ,&
-                            & KERROR)
-
-ELSEIF( KOP == 4 ) THEN
-
-! non blocking write, collective, ordered with shared file pointer
-
-  CALL MPI_FILE_WRITE_ORDERED_BEGIN(KFPTR,&
-                                  & PBUF,&
-                                  & KLEN,&
-                                  & MPI_REAL8,&
-                                  & KERROR)
-
-ELSEIF( KOP == 5 ) THEN
-
-  CALL MPI_WAIT(KREQ,&
-              & STATUS,&
-              & KERROR )
-
-ELSEIF( KOP == 6 ) THEN
-
-  CALL MPI_FILE_WRITE_ORDERED_END(KFPTR,&
-                                & PBUF,&
-                                & STATUS,&
-                                & KERROR)
- 
-ELSE
-
-  KERROR =-1
-  RETURN
-
-ENDIF
-
-#:else
-
-CALL ABOR1('MPL_WRITE_REAL8 not built with MPI2')
-
-#:endif
-
-!
-!     -----------------------------------------------------------------
-RETURN
-END SUBROUTINE MPL_WRITE_REAL8
-
+#:endfor
+      
 END MODULE MPL_WRITE_MOD

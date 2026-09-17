@@ -12,23 +12,25 @@ MODULE MPL_SEND_MOD
 
 #! type: (kind, scalar, not_contiguous, datatype , dimension, icommtype )
 #:set vdef = { &
-      & 'REAL4' : ('REAL(KIND=JPRM)', False, '0', 'MPI_REAL4', 1 ,'M' ), &
-      & 'REAL8' : ('REAL(KIND=JPRD)', False, '8', 'INT(MPI_REAL8)', 1, 'I'  ), &
-      & 'INT'  : ('INTEGER(KIND=JPIM)',False, '4', 'INT(MPI_INTEGER)', 1,'I' ),  &
-      & 'INT2' : ('INTEGER(KIND=JPIM)',False, '4', 'INT(MPI_INTEGER)', 2, 'I' ), &
-      & 'INT8' : ('INTEGER(KIND=JPIB)',False, '8', 'INT(MPI_INTEGER8)',1,'I' ), &
-      & 'INT_SCALAR' : ('INTEGER(KIND=JPIM)', True,  4, 'INT(MPI_INTEGER)',0,'I'), &
-      & 'REAL42' : ('REAL(KIND=JPRM)', False, '42', 'INT(MPI_REAL4)', 2, 'I'),&
-      & 'REAL82' : ('REAL(KIND=JPRD)', False, '82', 'INT(MPI_REAL8)', 2, 'I'  ), &
-      & 'REAL43' : ('REAL(KIND=JPRM)',False, '43', 'INT(MPI_REAL4)', 3, 'I'),&
-      & 'REAL83' : ('REAL(KIND=JPRD)', False, '83', 'INT(MPI_REAL8)', 3, 'I'  ), &
-      & 'REAL4_SCALAR' : ('REAL(KIND=JPRM)', True, '4', 'INT(MPI_REAL4)', 0, 'I'),&
-      & 'REAL8_SCALAR' : ('REAL(KIND=JPRD)', True, '8', 'INT(MPI_REAL8)', 0, 'I'  ), &
-      & 'CHAR_SCALAR' : ('CHARACTER(LEN=*)', True, '8', 'INT(MPI_BYTE)',0,'I'), &
-      & 'CHAR' : ('CHARACTER(LEN=*)', True, '-1', 'INT(MPI_BYTE)', 1, 'I'), &
+      & '1RM' : ('REAL(KIND=JPRM)', False, '0', 'MPI_REAL4', 1 ,'M' ), &
+      & '1RD' : ('REAL(KIND=JPRD)', False, '8', 'INT(MPI_REAL8)', 1, 'I'  ), &
+      & '1IM'  : ('INTEGER(KIND=JPIM)',False, '4', 'INT(MPI_INTEGER)', 1,'I' ),  &
+      & '2IM' : ('INTEGER(KIND=JPIM)',False, '4', 'INT(MPI_INTEGER)', 2, 'I' ), &
+      & '1IB' : ('INTEGER(KIND=JPIB)',False, '8', 'INT(MPI_INTEGER8)',1,'I' ), &
+      & '01M' : ('INTEGER(KIND=JPIM)', True,  4, 'INT(MPI_INTEGER)',0,'I'), &
+      & '2RM' : ('REAL(KIND=JPRM)', False, '42', 'INT(MPI_REAL4)', 2, 'I'),&
+      & '2RD' : ('REAL(KIND=JPRD)', False, '82', 'INT(MPI_REAL8)', 2, 'I'  ), &
+      & '3RM' : ('REAL(KIND=JPRM)',False, '43', 'INT(MPI_REAL4)', 3, 'I'),&
+      & '3RD' : ('REAL(KIND=JPRD)', False, '83', 'INT(MPI_REAL8)', 3, 'I'  ), &
+      & '0RM' : ('REAL(KIND=JPRM)', True, '4', 'INT(MPI_REAL4)', 0, 'I'),&
+      & '0RD' : ('REAL(KIND=JPRD)', True, '8', 'INT(MPI_REAL8)', 0, 'I'  ), &
+      & 'OCH' : ('CHARACTER(LEN=*)', True, '8', 'INT(MPI_BYTE)',0,'I'), &
+      & '1CH' : ('CHARACTER(LEN=*)', True, '-1', 'INT(MPI_BYTE)', 1, 'I'), &
       &   }       
 
-#:set types = ['REAL4','REAL8','INT','INT2', 'INT8', 'INT_SCALAR','REAL42','REAL43','REAL82','CHAR_SCALAR','CHAR','REAL4_SCALAR','REAL8_SCALAR','REAL83' ]
+! #:set types = ['REAL4','REAL8','INT','INT2', 'INT8', 'INT_SCALAR','REAL42','REAL43','REAL82','CHAR_SCALAR','CHAR','REAL4_SCALAR','REAL8_SCALAR','REAL83' ]
+#:set ranksuffs = ['1RM','1RD','1IM','2IM', '1IB', '01M','2RM','3RM','2RD','0CH','1CB','0RM','0RD','3RM' ]
+
 
 
 #:def scalar(type)
@@ -160,16 +162,16 @@ IMPLICIT NONE
       
 INTERFACE MPL_SEND
 
-#:for type in types
-      MODULE PROCEDURE MPL_SEND_${type}$
+#:for ranksuff in ranksuffs
+      MODULE PROCEDURE MPL_SEND_${ranksuff}$
 #:endfor
 
 #:set suffixes = [ '' ]
 
 #:if defined('_CUDA')
 #:set suffixes = [ '', '_DEVICE']
-#:for type in types
-      MODULE PROCEDURE MPL_SEND_${type}$_DEVICE
+#:for ranksuff in ranksuffs
+      MODULE PROCEDURE MPL_SEND_${ranksuffs}$_DEVICE
 #:endfor
 
 #:endif
@@ -189,7 +191,7 @@ CONTAINS
 
 #:for suffix in suffixes
 
-#:for type in types
+#:for ranksuff in ranksuffs
       
 SUBROUTINE MPL_SEND_${type}$${suffix}$(PBUF,KDEST,KTAG,KCOMM,KMP_TYPE,KERROR,KREQUEST,CDSTRING)
 
@@ -199,7 +201,7 @@ SUBROUTINE MPL_SEND_${type}$${suffix}$(PBUF,KDEST,KTAG,KCOMM,KMP_TYPE,KERROR,KRE
 #:endif
 
 ! real_m,intent(in) :: PBUF(:)
-${kind(type)}$  ${dim(type)}$ ${attr(suffix)}$ :: PBUF
+${kind(ranksuff)}$  ${dim(ranksuff)}$ ${attr(suffix)}$ :: PBUF
 INTEGER(KIND=JPIM),INTENT(IN) :: KDEST,KTAG
 INTEGER(KIND=JPIM),INTENT(IN),OPTIONAL :: KCOMM,KMP_TYPE
 INTEGER(KIND=JPIM),INTENT(OUT),OPTIONAL :: KREQUEST,KERROR
@@ -209,8 +211,8 @@ TYPE(MPI_REQUEST) :: IREQUEST_LOCAL
 INTEGER(KIND=JPIM) :: ICOUNT,IMP_TYPE,IERROR
 LOGICAL :: LLABORT=.TRUE.
 INTEGER(KIND=JPIM) :: ITID
-${icommtype(type)}$ :: ICOMM
-${kind(type)}$    :: DUM(1:0)
+${icommtype(ranksuff)}$ :: ICOMM
+${kind(ranksuff)}$    :: DUM(1:0)
 ITID = OML_MY_THREAD()
 
 IF(MPL_NUMPROC < 1) CALL MPL_MESSAGE( &
@@ -222,19 +224,19 @@ ELSE
   IMP_TYPE=MPL_METHOD
 ENDIF
 IF(PRESENT(KCOMM)) THEN
-  ${icomm(type)}$=KCOMM
+  ${icomm(ranksuff)}$=KCOMM
 ELSE
-  ${icomm(type)}$=MPL_COMM_OML(ITID)
+  ${icomm(ranksuff)}$=MPL_COMM_OML(ITID)
 ENDIF
-IF((KDEST < 1 .OR. KDEST >MPL_NPROC(${icomm(type)}$)) .AND. (.NOT. PRESENT (KCOMM))) THEN
+IF((KDEST < 1 .OR. KDEST >MPL_NPROC(${icomm(ranksuff)}$)) .AND. (.NOT. PRESENT (KCOMM))) THEN
   WRITE(MPL_ERRUNIT,*)'MPL_SEND: ERROR KDEST=',KDEST
   CALL MPL_MESSAGE(CDMESSAGE='MPL_SEND:ILLEGAL KDEST ',LDABORT=LLABORT)
 ENDIF
 
 ICOUNT = SIZE(PBUF)
-#:if not scalar(type)
+#:if not scalar(ranksuff)
 #:if defined('MPL_CHECK_CONFIG') or not defined('NAGFOR')
-IF( ${not_contiguous(type)}$ ) THEN
+IF( ${not_contiguous(ranksuff)}$ ) THEN
   CALL MPL_MESSAGE(CDMESSAGE='MPL_SEND: BUFFER NOT CONTIGUOUS ',LDABORT=LLABORT)
 ENDIF
 #:endif
@@ -242,26 +244,26 @@ ENDIF
 
 IF(LMPLSTATS) THEN
 #! TODO check
-#:if type == 'REAL4'
+#:if type == '1RM'
       CALL MPL_SENDSTATS(ICOUNT, MPI_REAL4%MPI_VAL)
 #:else
-	CALL MPL_SENDSTATS(ICOUNT, ${datatype(type)}$ )
+	CALL MPL_SENDSTATS(ICOUNT, ${datatype(ranksuff)}$ )
 #:endif	
 ENDIF
 
 IF (ICOUNT == 0) THEN
   IF(IMP_TYPE == JP_BLOCKING_STANDARD) THEN
-    CALL MPI_SEND(DUM,ICOUNT,${datatype(type)}$,KDEST-1,KTAG,ICOMM,IERROR)
+    CALL MPI_SEND(DUM,ICOUNT,${datatype(ranksuff)}$,KDEST-1,KTAG,ICOMM,IERROR)
   ELSE IF(IMP_TYPE == JP_BLOCKING_BUFFERED) THEN
-    CALL MPI_BSEND(DUM,ICOUNT,${datatype(type)}$,KDEST-1,KTAG,ICOMM,IERROR)
+    CALL MPI_BSEND(DUM,ICOUNT,${datatype(ranksuff)}$,KDEST-1,KTAG,ICOMM,IERROR)
   ELSE IF(IMP_TYPE == JP_NON_BLOCKING_STANDARD) THEN
 #! TODO check
 #:if type == 'REAL4'
-      CALL MPI_ISEND(DUM,ICOUNT,${datatype(type)}$,KDEST-1,KTAG,ICOMM, &
+      CALL MPI_ISEND(DUM,ICOUNT,${datatype(ranksuff)}$,KDEST-1,KTAG,ICOMM, &
       & IREQUEST_LOCAL,IERROR)
     KREQUEST=IREQUEST_LOCAL%MPI_VAL
 #:else
-      CALL MPI_ISEND(DUM,ICOUNT,${datatype(type)}$,KDEST-1,KTAG,ICOMM, &
+      CALL MPI_ISEND(DUM,ICOUNT,${datatype(ranksuff)}$,KDEST-1,KTAG,ICOMM, &
       & KREQUEST,IERROR)
 #:endif     
   ELSE IF(IMP_TYPE == JP_NON_BLOCKING_BUFFERED) THEN
@@ -271,11 +273,11 @@ IF (ICOUNT == 0) THEN
       & IREQUEST_LOCAL,IERROR)
     KREQUEST=IREQUEST_LOCAL%MPI_VAL
 #:else
-    CALL MPI_IBSEND(DUM,ICOUNT,${datatype(type)}$,KDEST-1,KTAG,ICOMM, &
+    CALL MPI_IBSEND(DUM,ICOUNT,${datatype(ranksuff)}$,KDEST-1,KTAG,ICOMM, &
       & KREQUEST,IERROR)
 #:endif      
   ELSE IF(IMP_TYPE == JP_BLOCKING_SYNCHRONOUS) THEN
-    CALL MPI_SSEND(DUM,ICOUNT,${datatype(type)}$,KDEST-1,KTAG,ICOMM,IERROR)
+    CALL MPI_SSEND(DUM,ICOUNT,${datatype(ranksuff)}$,KDEST-1,KTAG,ICOMM,IERROR)
   ELSE
     IF(PRESENT(KERROR)) THEN
       KERROR=1
@@ -285,9 +287,9 @@ IF (ICOUNT == 0) THEN
   ENDIF
 ELSE
   IF(IMP_TYPE == JP_BLOCKING_STANDARD) THEN
-    CALL MPI_SEND(PBUF,ICOUNT,${datatype(type)}$,KDEST-1,KTAG,ICOMM,IERROR)
+    CALL MPI_SEND(PBUF,ICOUNT,${datatype(ranksuff)}$,KDEST-1,KTAG,ICOMM,IERROR)
   ELSE IF(IMP_TYPE == JP_BLOCKING_BUFFERED) THEN
-    CALL MPI_BSEND(PBUF,ICOUNT,${datatype(type)}$,KDEST-1,KTAG,ICOMM,IERROR)
+    CALL MPI_BSEND(PBUF,ICOUNT,${datatype(ranksuff)}$,KDEST-1,KTAG,ICOMM,IERROR)
   ELSE IF(IMP_TYPE == JP_NON_BLOCKING_STANDARD) THEN
 #:if type == 'REAL4'         
     CALL MPI_ISEND(PBUF,ICOUNT,MPI_REAL4,KDEST-1,KTAG,ICOMM, &
@@ -298,14 +300,14 @@ ELSE
       & IREQUEST_LOCAL,IERROR)
     KREQUEST=IREQUEST_LOCAL%MPI_VAL
 #:else      
-    CALL MPI_ISEND(PBUF(1),ICOUNT,${datatype(type)}$,KDEST-1,KTAG,ICOMM, &
+    CALL MPI_ISEND(PBUF(1),ICOUNT,${datatype(ranksuff)}$,KDEST-1,KTAG,ICOMM, &
       & KREQUEST,IERROR)
   ELSE IF(IMP_TYPE == JP_NON_BLOCKING_BUFFERED) THEN
-    CALL MPI_IBSEND(PBUF(1),ICOUNT,${datatype(type)}$,KDEST-1,KTAG,ICOMM, &
+    CALL MPI_IBSEND(PBUF(1),ICOUNT,${datatype(ranksuff)}$,KDEST-1,KTAG,ICOMM, &
       & KREQUEST,IERROR)
 #:endif      
   ELSE IF(IMP_TYPE == JP_BLOCKING_SYNCHRONOUS) THEN
-    CALL MPI_SSEND(PBUF,ICOUNT,${datatype(type)}$,KDEST-1,KTAG,ICOMM,IERROR)
+    CALL MPI_SSEND(PBUF,ICOUNT,${datatype(ranksuff)}$,KDEST-1,KTAG,ICOMM,IERROR)
   ELSE
     IF(PRESENT(KERROR)) THEN
       KERROR=1
