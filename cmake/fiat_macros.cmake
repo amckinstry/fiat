@@ -43,6 +43,9 @@ if( NOT DEFINED FIAT_ATTRIBUTE_CONSTRUCTOR_SUPPORTED )
   endif()
 endif()
 
+include( fiat_expand_fypp )
+include( fiat_expand_fypp_ranksuff )
+
 include( fiat_target_fortran_module_directory )
 include( fiat_target_ignore_missing_symbols )
 

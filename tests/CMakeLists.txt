@@ -54,6 +54,8 @@ add_subdirectory( drhook )
 
 add_subdirectory( gstats )
 
+add_subdirectory( mpl )
+
 # ----------------------------------------------------------------------------------------
 # Test: fiat_test_drhook_no_output
 #
