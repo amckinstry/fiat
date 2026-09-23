@@ -12,10 +12,11 @@
 program test_mpl_alltoallv_${ranksuff}$
     USE mpl_module,  only : MPL_ALLTOALLV, MPL_INIT, MPL_NPROC, MPL_END, &
     		     	  & MPL_ABORT, MPL_MYRANK
+    USE EC_PARKIND, ONLY : JPIM, JPIB, JPRM, JPRD
     implicit none
     
     integer :: size, my_rank
-    integer, allocatable :: buffer_send(:), buffer_recv(:)
+    ${ecType.datatype(ranksuff)}$ , allocatable :: buffer_send(:), buffer_recv(:)
     integer :: buffer_send_length, buffer_recv_length
     integer :: counts_send(3), displacements_send(3)
     integer :: counts_recv(3), displacements_recv(3)

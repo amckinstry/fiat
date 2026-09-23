@@ -55,7 +55,9 @@ foreach (RANKSUFF ${_${FUNC}_RANKSUFFS})
 ecbuild_add_test( TARGET ${FUNC}_${RANKSUFF} 
 		  SOURCES ${FUNC}_${RANKSUFF}.F90
 		  LIBS ${fiatlib} ${OMP}
-		  LINKER_LANGUAGE Fortran DEFINITIONS ${FCKIT_DEFINITIONS}) 
+		  LINKER_LANGUAGE Fortran DEFINITIONS ${FCKIT_DEFINITIONS}
+	          CONDITION HAVE_MPI
+    		  MPI 3 )
 endforeach()
 endforeach()
 

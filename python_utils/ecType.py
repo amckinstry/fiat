@@ -19,7 +19,7 @@ class ecType (object):
     self.__dict__ = kwargs
     try:
       self.rank = int(self.ranksuff[:1])
-      self.kind = self.ranksuff[1:]
+      self.kind = 'JP' + self.ranksuff[1:]
       self.suffix = self.ranksuff[1:]
     except:
       # ranksuff not passed
@@ -34,10 +34,10 @@ class ecType (object):
     tm = {'RM' : 'MPI_REAL4', 'RD' : 'MPI_REAL8', 'IM' : 'MPI_INTEGER', 'ID' : 'MPI_INTEGER8' }
 
     if 'tt' == 'C':
-      self.type ='CHARACTER(LEN=*)'
+      self.datatype ='CHARACTER(LEN=*)'
       self.rank = 0
     else:
-      self.type = th[tt] + '(KIND=' + self.kind + ')'
+      self.datatype = th[tt] + '(KIND=' + self.kind + ')'
       self.rank = int (self.rank)
 
     self.default = td[tt] + '_' + self.kind
@@ -62,6 +62,8 @@ def kind(ranksuff):
   return ecType(ranksuff=ranksuff).kind
 def dim(ranksuff):
   return ecType(ranksuff=ranksuff).rank -1
+def datatype(ranksuff):
+  return ecType(ranksuff=ranksuff).datatype
 
 
 
