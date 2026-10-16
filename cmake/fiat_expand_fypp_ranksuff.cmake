@@ -49,7 +49,7 @@ macro( fiat_expand_fypp_ranksuff )
         if( ${_PAR_CORE} )
     	 foreach (RANKSUFF ${_${FUNC}_RANKSUFFS})
              add_custom_command (OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${FUNC}_${RANKSUFF}.F90
-       	      COMMAND ${FYPP}  -Dranksuff=\\\'${RANKSUFF}\\\'  ${fypp_defines} -m os -M ${_PAR_PYTHON_MODULE_DIR} -m ecType 
+       	      COMMAND ${FYPP}  -Dranksuff='${RANKSUFF}'  ${fypp_defines} -m os -M ${_PAR_PYTHON_MODULE_DIR} -m ecType 
                ${_PAR_SOURCE_DIR}/${FUNC}_RANKSUFF.fypp > ${CMAKE_CURRENT_BINARY_DIR}/${FUNC}_${RANKSUFF}.F90
                DEPENDS ${_PAR_SOURCE_DIR}/${FUNC}_RANKSUFF.fypp
                VERBATIM)
@@ -58,7 +58,7 @@ macro( fiat_expand_fypp_ranksuff )
         else()
            foreach (FUNC ${_PAR_INPUT_SRCS})
              add_custom_command (OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${FUNC}_${RANKSUFF}.F90
-       	      COMMAND ${FYPP} -Dranksuff=\\\'${RANKSUFF}\\\' ${fypp_defines} -m os -M ${_PAR_PYTHON_MODULE_DIR} -m ecType
+       	      COMMAND ${FYPP} -Dranksuff='${RANKSUFF}' ${fypp_defines} -m os -M ${_PAR_PYTHON_MODULE_DIR} -m ecType
                ${_PAR_SOURCE_DIR}/${FUNC}_RANKSUFF.fypp > ${CMAKE_CURRENT_BINARY_DIR}/${FUNC}_${RANKSUFF}.F90
                DEPENDS ${_PAR_SOURCE_DIR}/${FUNC}_RANKSUFF.fypp
                VERBATIM)

@@ -12,7 +12,6 @@ MODULE MPL_BYTES_MOD
 
 #:set ranksuffs = ['2IM','2IB','2RM','2RD']
       
-#:set base_type = { '2IM': 'INTEGER', '2IB': 'INTEGER', '2RM' : 'REAL' , '2RD' :'REAL'}
 
 USE EC_PARKIND, ONLY : JPIM, JPIB, JPRM, JPRD
 
@@ -31,8 +30,8 @@ END INTERFACE MPL_BYTES
 CONTAINS
 
 #:for ranksuff in ranksuffs
-FUNCTION MPL_BYTES_${ranksuff}$(KVAR)
-${base_type[ranksuff]}$(KIND=JP${ranksuff}$), INTENT(IN) :: VAR
+FUNCTION MPL_BYTES_${ranksuff}$(VAR)
+${ecType.datatype(ranksuff)}$, INTENT(IN) :: VAR
 INTEGER(KIND=JPIM) MPL_BYTES_${ranksuff}$
 MPL_BYTES_${ranksuff}$ = SIZE(TRANSFER(VAR, (/'A'/)))
 END FUNCTION MPL_BYTES_${ranksuff}$

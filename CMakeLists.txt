@@ -136,6 +136,8 @@ endif()
 # define MPI_SERIAL_LIBRARIES before including src folder, for use in fiat library declaration
 set(MPI_SERIAL_LIBRARIES ${_whole_archive} mpi_serial ${_no_whole_archive})
 
+fiat_find_fypp()
+
 include( fiat_compiler_warnings )
 add_subdirectory(src)
 add_subdirectory(share)

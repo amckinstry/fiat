@@ -54,6 +54,9 @@ ecbuild_list_add_pattern( LIST fiat_src GLOB
     util/*.c util/*.F*
     )
 
+add_subdirectory( mpl/internal_f08 )
+LIST(APPEND fiat_src ${fiat_src_from_fypp})
+
 if( HAVE_MPL_F77_DEPRECATED)
     ecbuild_list_add_pattern( LIST fiat_src GLOB
       "mpl/internal_deprecated/*.c" "mpl/internal_deprecated/*.F*"
@@ -204,14 +207,21 @@ endif()
       _MPI_Get_version
       _MPI_Get_library_version
     )
+endforeach()
 
-    fiat_target_fortran_module_directory(
+fiat_target_fortran_module_directory(
       TARGET ${fiatlib}
       MODULE_DIRECTORY  ${CMAKE_BINARY_DIR}/module/fiat
       INSTALL_DIRECTORY module/fiat
+)
+foreach (TARGET ${fiat_fypp_src})
+    fiat_target_fortran_module_directory(
+    	  TARGET ${TARGET}
+      	  MODULE_DIRECTORY  ${CMAKE_BINARY_DIR}/module/fiat
+    	  INSTALL_DIRECTORY module/fiat
     )
-
 endforeach()
+     
 
 ## Install and Export ##
 

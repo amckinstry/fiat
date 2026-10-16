@@ -243,8 +243,8 @@ LinuxTraceBack(const char *prefix, const char *timestr, void *sigcontextptr)
               cxxfunc = cxxdemangle(func,NULL);
               nl = strchr(line,'\n');
               if (nl) *nl = '\0';
-              leftB = strchr(last_slash,'(');
-              plus = strrchr(last_slash,'+');
+              leftB = (char *) strchr(last_slash,'(');
+              plus = (char *) strrchr(last_slash,'+');
               if (leftB && plus && (int)(plus-leftB) > 1) {
                 int istat = 0;
                 char *cxx = NULL;

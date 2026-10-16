@@ -10,26 +10,27 @@
 
 MODULE MPI4TO8
 
-#!  ranksuff: ( kind, dimension, allocate, cast, base_kind )
+#! TODO Check dimension, allocate; cast;
+#!  ranksuff: ( dimension, allocate, cast )
 #:set vdef = { &      
-      & '1RM' : ('REAL(KIND=JPRM)',1,True, True, 'REAL' ), &
-      & '1RD' : ('REAL(KIND=JPRD)',1,False,False, 'REAL' ), &
-      & '2RM' : ('REAL(KIND=JPRM)',2,True, True, 'REAL' ), &
-      & '2IM' : ('INTEGER(KIND=JRPM)', 2 , True, True , 'INTEGER'), &
-      & '2RD' : ('REAL(KIND=JPRD)', 2 , False, False,'REAL'), &
-      & '1ID'  : ('INTEGER(KIND=JPIB)', 1, True, False,'INTEGER'), &
-      & '1IM'  : ('INTEGER(KIND=JPIM)', 1, True, False,'INTEGER'), &
-      & '0IM'  : ('INTEGER(KIND=JPIM)', 0, False, True,'INTEGER'), &
-      & '0RM' : ('REAL(KIND=JPRM)', 0, False, True,'REAL'), &
-      & '0RD' : ('REAL(KIND=JPRD)', 0, False, True,'REAL'), &
-      & '0CH' : ('CHARACTER(LEN=*)', 0, False, False,'CHARACTER'), &
-      & '2RM' : ('REAL(KIND=JPRM)',2,True, True,'REAL' ), &
-      & '2RD' : ('REAL(KIND=JPRM)',2,True, True,'REAL' ), &
-      & '0RM' : ('REAL(KIND=JPRM)',0,False,True,'REAL'), &
-      & '0RD' : ('REAL(KIND=JPRD)',1,False,True,'REAL'), &
-      & '0RM' : ('INTEGER(KIND=JRPM)', 1 , False, True , 'INTEGER'), &
-      & '0RM' : ('INTEGER(KIND=JRPM)', 0 , False, True , 'INTEGER'), &
-      & 'ORD' : ('REAL(KIND=JPRD)',0,False,True,'REAL'), &
+      & '1RM' : (1,True, True ), &
+      & '1RD' : (1,False,False ), &
+      & '2RM' : (2,True, True,  ), &
+      & '2IM' : ( 2 , True, True  ), &
+      & '2RD' : ( 2 , False, False,), &
+      & '1ID'  : ( 1, True, False,), &
+      & '1IM'  : ( 1, True, False,), &
+      & '0IM'  : ( 0, False, True,), &
+      & '0RM' : ( 0, False, True,), &
+      & '0RD' : ( 0, False, True,), &
+      & '0CH' : ( 0, False, False,'CHARACTER'), &
+      & '2RM' : (2,True, True, ), &
+      & '2RD' : (2,True, True, ), &
+      & '0RM' : (0,False,True,), &
+      & '0RD' : (1,False,True,), &
+      & '0RM' : ( 1 , False, True , ), &
+      & '0RM' : (0 , False, True ), &
+      & 'ORD' : (0,False,True,), &
       }
 
 #:set sendrecv_ranksuffs = ['1RM', '1R8','2RM','2RD','0IM','1IM','0CH','2IM','0RM','0RD' ]
@@ -43,28 +44,21 @@ MODULE MPI4TO8
 #:set bcast_ranksuffs = ['R4','R8','I4','I1','CH']      
 
 #:def allocatable(ranksuff)
- #:if vdef[ranksuff][2] == True
+ #:if vdef[ranksuff][1] == True
    ALLOCATABLE
  #:endif
 #:enddef
 #:def dim(ranksuff)
-  #: set y = vdef[ranksuff][1]
+  #: set y = vdef[ranksuff][0]
   #: set dimension = {0: '', 1: ',DIMENSION(:)',2:',DIMENSION(:,:)' }
   ${dimension[y]}$
 #:enddef
 #:def is_allocatable(ranksuff)
-  ${vdef[ranksuff][2]}$
+  ${vdef[ranksuff][1]}$
 #:enddef      
-#:def kind(ranksuff)
-  ${vdef[ranksuff][0]}$
-#:enddef
 #:def cast(ranksuff)
-  ${vdef[ranksuff][3]}$
+  ${vdef[ranksuff][2]}$
 #:enddef
-#:def base_kind(ranksuff)
-     ${vdef[ranksuff][4]}$
-#:enddef
-
         
 #:if defined('USE_8_BYTE_WORDS')
 
@@ -147,16 +141,16 @@ CONTAINS
 SUBROUTINE MPI_ALLREDUCE8_${ranksuff}$(SENDDATA, RECVDATA, COUNT, DATATYPE, OP, &
                              COMM, IERROR)
 
-  ${kind(ranksuff)}$, ${dim(ranksuff)}$ INTENT(IN) :: &
+  ${datatype(ranksuff)}$, ${dimension(ranksuff)}$ INTENT(IN) :: &
     SENDDATA
   INTEGER(KIND=JPIM), INTENT(IN) :: &
     COUNT, DATATYPE, OP, COMM
-  ${kind(ranksuff)}$, ${dim(ranksuff)}$ INTENT(OUT) :: &
+  ${datatype(ranksuff)}$, ${dimension(ranksuff)}$ INTENT(OUT) :: &
     RECVDATA
   INTEGER(KIND=JPIM), INTENT(OUT) :: &
     IERROR
 
-  ${base_kind(ranksuff)}$(KIND=8), ${dim(ranksuff)}$ ${allocatable(ranksuff)}$ :: &
+  ${base_kind(ranksuff)}$(KIND=8), ${dimension(ranksuff)}$ ${allocatable(ranksuff)}$ :: &
     SENDDATA8, RECVDATA8
   INTEGER(KIND=8) :: &
     COUNT8, DATATYPE8, OP8, COMM8, IERROR8
@@ -199,11 +193,11 @@ END SUBROUTINE MPI_ALLREDUCE8_${ranksuff}$
 SUBROUTINE MPI_ALLGATHERV8_${ranksuff}$(SENDAREA, SENDCOUNT, SENDTYPE, RECVAREA, &
       RECVCOUNTS, DISPLS, RECVTYPE, COMM, IERROR)
 
-  ${kind(ranksuff)}$, ${dim(ranksuff)}$ INTENT(IN) :: &
+  ${datatype(ranksuff)}$ ${dimension(ranksuff)}$ , INTENT(IN) :: &
     SENDAREA
   INTEGER(KIND=JPIM), INTENT(IN) :: &
     SENDCOUNT, SENDTYPE, RECVTYPE, COMM
-  ${kind(ranksuff)}$, ${dim(ranksuff)}$ INTENT(OUT) :: &
+  ${datatype(ranksuff)}$ ${dimension(ranksuff)}$ ,INTENT(OUT) :: &
     RECVAREA
   INTEGER(KIND=JPIM), DIMENSION(:), INTENT(IN) :: &
     RECVCOUNTS, DISPLS
@@ -211,7 +205,7 @@ SUBROUTINE MPI_ALLGATHERV8_${ranksuff}$(SENDAREA, SENDCOUNT, SENDTYPE, RECVAREA,
     IERROR
 
 #:if cast(ranksuff)
-  ${base_kind(ranksuff)}$(KIND=8), ${dim(ranksuff)}$ ${allocatable(ranksuff)}$ :: &
+  ${base_kind(ranksuff)}$(KIND=8) ${dimension(ranksuff)}$, ${allocatable(ranksuff)}$ :: &
     SENDAREA8, RECVAREA8
 #:endif
   INTEGER(KIND=8), DIMENSION(:), ALLOCATABLE :: &
@@ -266,19 +260,19 @@ END SUBROUTINE MPI_ALLGATHERV8_${ranksuff}$
 SUBROUTINE MPI_ALLTOALLV8_${ranksuff}$(SENDAREA, SENDCOUNTS, SDISPLS, SENDTYPE, &
                              RECVAREA, RECVCOUNTS, RDISPLS, RECVTYPE, &
                              COMM, IERROR)
-  ${kind(ranksuff)}$, ${dim(ranksuff)}$ INTENT(IN) :: &
+  ${datatype(ranksuff)}$ ${dimension(ranksuff)}$ ,INTENT(IN) :: &
     SENDAREA
   INTEGER(KIND=JPIM), DIMENSION(:), INTENT(IN) :: &
     SENDCOUNTS, SDISPLS, RECVCOUNTS, RDISPLS
   INTEGER(KIND=JPIM), INTENT(IN) :: &
     SENDTYPE, RECVTYPE, COMM
-  ${kind(ranksuff)}$, ${dim(ranksuff)}$ INTENT(OUT) :: &
+  ${datatype(ranksuff)}$ ${dimension(ranksuff)}$ ,INTENT(OUT) :: &
     RECVAREA
   INTEGER(KIND=JPIM), INTENT(OUT) :: &
     IERROR
 
 #:if cast(ranksuff)
- ${base_kind(ranksuff)}$(KIND=8) ${dim(ranksuff)}$ ${allocatable}$ :: &
+ ${base_kind(ranksuff)}$(KIND=8) ${dimension(ranksuff)}$ ${allocatable}$ :: &
     SENDAREA8, RECVAREA8
 #:endif
  INTEGER(KIND=8), DIMENSION(:), ALLOCATABLE :: &
@@ -341,7 +335,7 @@ END SUBROUTINE MPI_ALLTOALLV8_${ranksuff}$
 
 SUBROUTINE MPI_BCAST8_${ranksuff}$(DATA, COUNT, DATATYPE, ROOT, COMM, IERROR)
 
-  ${kind(ranksuff)}$, ${dim(ranksuff)}$ INTENT(INOUT) :: &
+  ${datatype(ranksuff)}$ ${dimension(ranksuff)}$ ,INTENT(INOUT) :: &
     DATA
   INTEGER(KIND=JPIM), INTENT(IN) :: &
     COUNT, DATATYPE, ROOT, COMM
@@ -384,14 +378,14 @@ END SUBROUTINE MPI_BCAST8_${ranksuff}$
         
 SUBROUTINE MPI_BSEND8_${ranksuff}$(DATA, COUNT, DATATYPE, DEST, TAG, COMM, IERROR)
 
-  ${kind(ranksuff)}$, ${dim(ranksuff)}$ INTENT(IN) :: &
+  ${datatype(ranksuff)}$ ${dimension(ranksuff)}$ ,INTENT(IN) :: &
     DATA
   INTEGER(KIND=JPIM), INTENT(IN) :: &
     COUNT, DATATYPE, DEST, TAG, COMM
   INTEGER(KIND=JPIM), INTENT(OUT) :: &
     IERROR
 
-  ${base_kind(ranksuff)}$(KIND=8), ${dim(ranksuff)}$ ${allocatable(ranksuff)}$ :: &
+  ${base_kind(ranksuff)}$(KIND=8) ${dimension(ranksuff)}$ ${allocatable(ranksuff)}$ :: &
     DATA8
   INTEGER(KIND=8) :: &
     COUNT8, DATATYPE8, DEST8, TAG8, COMM8, IERROR8
@@ -424,14 +418,14 @@ END SUBROUTINE MPI_BSEND8_${ranksuff}
       
 SUBROUTINE MPI_ISEND8_${ranksuff}$ (DATA, COUNT, DATATYPE, DEST, TAG, COMM, REQUEST, IERROR)
 
-  ${kind(ranksuff)}$, ${dim(ranksuff)}$ INTENT(IN) :: &
+  ${datatype(ranksuff)}$, ${dim(ranksuff)}$ INTENT(IN) :: &
     DATA
   INTEGER(KIND=JPIM), INTENT(IN) :: &
     COUNT, DATATYPE, DEST, TAG, COMM
   INTEGER(KIND=JPIM), INTENT(OUT) :: &
     REQUEST, IERROR
 
-  ${base_kind(ranksuff)}$(KIND=8), ${dim(ranksuff)}$ ${allocatable(ranksuff)}$ :: &
+  ${base_kind(ranksuff)}$(KIND=8) ${dimension(ranksuff)}$ ${allocatable(ranksuff)}$ :: &
     DATA8
   INTEGER(KIND=8) :: &
     COUNT8, DATATYPE8, DEST8, TAG8, COMM8, REQUEST8, IERROR8
@@ -465,14 +459,14 @@ END SUBROUTINE MPI_ISEND8_${ranksuff}$
 
 SUBROUTINE MPI_SEND8_${ranksuff} (DATA, COUNT, DATATYPE, DEST, TAG, COMM, IERROR)
 
-  ${kind(ranksuff)}$, ${dim(ranksuff)}$ INTENT(IN) :: &
+  ${datatype(ranksuff)}$, ${dim(ranksuff)}$ INTENT(IN) :: &
     DATA
   INTEGER(KIND=JPIM), INTENT(IN) :: &
     COUNT, DATATYPE, DEST, TAG, COMM
   INTEGER(KIND=JPIM), INTENT(OUT) :: &
     IERROR
 
-  ${base_kind(ranksuff)}$(KIND=8), ${dim(ranksuff)}$ ${allocatable(ranksuff)}$ :: &
+  ${base_kind(ranksuff)}$(KIND=8), ${dimension(ranksuff)}$ ${allocatable(ranksuff)}$ :: &
     DATA8
   INTEGER(KIND=8) :: &
     COUNT8, DATATYPE8, DEST8, TAG8, COMM8, IERROR8
@@ -511,7 +505,7 @@ SUBROUTINE MPI_FILE_${method}$8_${ranksuff}$(FH, BUF, COUNT, DATATYPE, REQUEST, 
 
   INTEGER(KIND=JPIM), INTENT(IN) :: &
     FH, COUNT, DATATYPE
-  ${kind(ranksuff)}$, ${dim(ranksuff)}$ INTENT(OUT) :: &
+  ${datatype(ranksuff)}$, ${dimensions(ranksuff)}$ INTENT(OUT) :: &
     BUF
   INTEGER(KIND=JPIM), INTENT(OUT) :: &
     REQUEST, IERROR
@@ -519,7 +513,7 @@ SUBROUTINE MPI_FILE_${method}$8_${ranksuff}$(FH, BUF, COUNT, DATATYPE, REQUEST, 
   INTEGER(KIND=8) :: &
     FH8, COUNT8, DATARANKSUFF8, REQUEST8, IERROR8
 
-  ${base_kind(ranksuff)}$(KIND=8), ${dim(ranksuff)}$ ${allocatable(ranksuff)}$ :: &
+  ${base_kind(ranksuff)}$(KIND=8), ${dimension(ranksuff)}$ ${allocatable(ranksuff)}$ :: &
       BUF8
 
 #:if allocatable(ranksuff)
@@ -555,7 +549,7 @@ SUBROUTINE MPI_FILE_${method}$8_${ranksuff}$(FH, BUF, COUNT, DATATYPE, STATUS, I
 
   INTEGER(KIND=JPIM), INTENT(IN) :: &
     FH, COUNT, DATATYPE
-  ${kind(ranksuff)}$ ${dim(ranksuff)}$ INTENT(OUT) :: &
+  ${datatype(ranksuff)}$ ${dimension(ranksuff)}$ ,INTENT(OUT) :: &
     BUF
   INTEGER(KIND=JPIM), INTENT(OUT) :: &
     STATUS(:), IERROR
@@ -565,7 +559,7 @@ SUBROUTINE MPI_FILE_${method}$8_${ranksuff}$(FH, BUF, COUNT, DATATYPE, STATUS, I
     FH8, COUNT8, DATATYPE8, IERROR8
 
 #:if allocatable(ranksuff)
-  ${kind(ranksuff)}$ ${dim(ranksuff)}$ ${allocatable(ranksuff)}$ :: &
+  ${kind(ranksuff)}$ ${dimension(ranksuff)}$ ${allocatable(ranksuff)}$ :: &
       BUF8
 #:endif      
       
@@ -597,7 +591,7 @@ SUBROUTINE MPI_FILE_${method}$8_${ranksuff}$(FH, BUF, COUNT, DATATYPE, STATUS, I
 
   INTEGER(KIND=JPIM), INTENT(IN) :: &
     FH, COUNT, DATATYPE
-  ${kind(ranksuff)}$ ${dim(ranksuff)}$ INTENT(IN) :: &
+  ${datatype(ranksuff)}$ ${dimension(ranksuff)}$ ,INTENT(IN) :: &
     BUF
   INTEGER(KIND=JPIM), INTENT(OUT) :: &
     STATUS(:), IERROR
@@ -606,7 +600,7 @@ SUBROUTINE MPI_FILE_${method}$8_${ranksuff}$(FH, BUF, COUNT, DATATYPE, STATUS, I
     FH8, COUNT8, DATATYPE8, IERROR8
 
 #:if allocatable(ranksuff)
-  ${base_kind(ranksuff)}$(KIND=8) ${dim(ranksuff)}$ ${allocatable(ranksuff)}$ :: &
+  ${base_kind(ranksuff)}$(KIND=8) ${dimension(ranksuff)}$ ${allocatable(ranksuff)}$ :: &
       BUF8
 #:endif      
       
@@ -638,14 +632,14 @@ SUBROUTINE MPI_FREAD_ORDERED_BEGIN8_${ranksuff}$(FH, BUF, COUNT, DATATYPE, IERRO
 
   INTEGER(KIND=JPIM), INTENT(IN) :: &
     FH, COUNT, DATATYPE
-  ${kind(ranksuff)}$, ${dim(ranksuff)}$ INTENT(OUT) :: &
+  ${datatype(ranksuff)}$ ${dimension(ranksuff)}$ ,INTENT(OUT) :: &
     BUF
   INTEGER(KIND=JPIM), INTENT(OUT) :: &
     IERROR
 
   INTEGER(KIND=8) :: &
     FH8, COUNT8, DATATYPE8, IERROR8
-  ${base_kind(ranksuff)}$(KIND=8), ${dim(ranksuff)}$ ${allocatable(ranksuff)}$  :: &
+  ${base_kind(ranksuff)}$(KIND=8) ${dimension(ranksuff)}$ ${allocatable(ranksuff)}$  :: &
       BUF8
 
 #:if allocatable(ranksuff)
@@ -680,10 +674,10 @@ SUBROUTINE MPI_FREAD_ORDERED_END8_${ranksuff}$(FH, BUF, STATUS, IERROR)
     FH
   INTEGER(KIND=JPIM), INTENT(OUT) :: &
       STATUS(:), IERROR
-  ${kind(ranksuff)}$, ${dim(ranksuff)}$ , INTENT(OUT) :: &
+  ${datatype(ranksuff)}$ ${dimension(ranksuff)}$ , INTENT(OUT) :: &
       BUF
      
-  ${base_kind(ranksuff)}$(KIND=8), ${dim(ranksuff)}$ ALLOCATABLE :: &
+  ${base_kind(ranksuff)}$(KIND=8), ${dimension(ranksuff)}$ ,ALLOCATABLE :: &
     BUF8
   INTEGER(KIND=8) :: &
     FH8, IERROR8
@@ -715,7 +709,7 @@ SUBROUTINE MPI_FWRITE_ORDERED_BEGIN8_${ranksuff}$(FH, BUF, COUNT, DATATYPE, IERR
 
   INTEGER(KIND=JPIM), INTENT(IN) :: &
     FH, COUNT, DATATYPE
-  ${kind(ranksuff)}$ ${dim(ranksuff)$ INTENT(OUT) :: &
+  ${datatype(ranksuff)}$ ${dimension(ranksuff)$ ,INTENT(OUT) :: &
     BUF
   INTEGER(KIND=JPIM), INTENT(OUT) :: &
     IERROR
@@ -723,7 +717,7 @@ SUBROUTINE MPI_FWRITE_ORDERED_BEGIN8_${ranksuff}$(FH, BUF, COUNT, DATATYPE, IERR
     FH8, COUNT8, DATATYPE8, IERROR8
 
 #:if allocatable(ranksuff)
-  ${base_kind(ranksuff)}$(KIND=8), ${dim(ranksuff)}$ ${allocatable(ranksuff)}$ :: &
+  ${base_kind(ranksuff)}$(KIND=8) ${dimension(ranksuff)}$ ${allocatable(ranksuff)}$ :: &
     BUF8
   ALLOCATE(BUF8(SIZE(BUF)))
 #:endif
@@ -752,7 +746,7 @@ SUBROUTINE MPI_FWRITE_ORDERED_END8_${ranksuff}$(FH, BUF, STATUS, IERROR)
 
   INTEGER(KIND=JPIM), INTENT(IN) :: &
     FH, STATUS(:)
-  ${kind(ranksuff)}$, ${dim(ranksuff)}$ INTENT(OUT) :: &
+  ${datatype(ranksuff)}$ ${dimension(ranksuff)}$ ,INTENT(OUT) :: &
       BUF
   INTEGER(KIND=JPIM), INTENT(OUT) :: &
       IERROR
@@ -761,7 +755,7 @@ SUBROUTINE MPI_FWRITE_ORDERED_END8_${ranksuff}$(FH, BUF, STATUS, IERROR)
     FH8, IERROR8
 
 #:if  allocatable(ranksuff)
-  ${base_kind(ranksuff)}$(KIND=8), ${dim(ranksuff)}$ ALLOCATABLE :: &
+  ${base_kind(ranksuff)}$(KIND=8) ${dimension(ranksuff)}$ ,ALLOCATABLE :: &
     BUF8
   ALLOCATE(BUF8(SIZE(BUF)))
 #:endif
@@ -793,11 +787,11 @@ END SUBROUTINE MPI_FWRITE_ORDERED_END8_${ranksuff}$
 SUBROUTINE MPI_GATHER8_${ranksuff}$(SENDDATA, SENDCOUNT, SENDTYPE, RECVAREA, &
                                 RECVCOUNT, RECVTYPE, ROOT, COMM, IERROR)
 
-=  ${kind(ranksuff)}$, INTENT(IN) :: &
+=  ${datatype(ranksuff)}$, INTENT(IN) :: &
     SENDDATA
   INTEGER(KIND=JPIM), INTENT(IN) :: &
     SENDCOUNT, SENDTYPE, RECVCOUNT, RECVTYPE, ROOT, COMM
-  ${kind(ranksuff)}$, INTENT(OUT) :: &
+  ${datatype(ranksuff)}$, INTENT(OUT) :: &
     RECVAREA
   INTEGER(KIND=JPIM), INTENT(OUT) :: &
     IERROR
@@ -835,9 +829,9 @@ END SUBROUTINE MPI_GATHER8_${ranksuff}
 SUBROUTINE MPI_GATHERV8_R8(SENDDATA, SENDCOUNT, SENDTYPE, RECVAREA, &
                            RECVCOUNTS, DISPLS, RECVTYPE, ROOT, COMM, IERROR)
 
-  ${kind(ranksuff)}$, ${dim(ranksuff)}$ INTENT(IN) :: &
+  ${datatype(ranksuff)}$ ${dimension(ranksuff)}$ ,INTENT(IN) :: &
     SENDDATA
-  ${kind(ranksuff)}$, INTENT(OUT) :: &
+  ${datatype(ranksuff)}$, INTENT(OUT) :: &
    RECVAREA
   INTEGER(KIND=JPIM), DIMENSION(:), INTENT(IN) :: &
     RECVCOUNTS, DISPLS
@@ -846,7 +840,7 @@ SUBROUTINE MPI_GATHERV8_R8(SENDDATA, SENDCOUNT, SENDTYPE, RECVAREA, &
   INTEGER(KIND=JPIM), INTENT(OUT) :: &
     IERROR
 
-  ${base_kind(ranksuff)}$(KIND=8), ${dim(ranksuff)}$ ${allocatable(ranksuff)}$ :: &
+  ${base_kind(ranksuff)}$(KIND=8) ${dimension(ranksuff)}$ ${allocatable(ranksuff)}$ :: &
       SENDDATA8, RECVDATA8
   INTEGER(KIND=8), DIMENSION(:), ALLOCATABLE :: &
     RECVCOUNTS8, DISPLS8
@@ -901,14 +895,14 @@ SUBROUTINE MPI_RECV8_${ranksuff}$(DATA, COUNT, DATATYPE, SOURCE, TAG, COMM, STAT
 
   INTEGER(KIND=JPIM), INTENT(IN) :: &
     COUNT, DATATYPE, SOURCE, TAG, COMM
-  ${kind(ranksuff)}$, ${dim(ranksuff)}$ INTENT(OUT) :: &
+  ${datatype(ranksuff)}$ ${dimension(ranksuff)}$ ,INTENT(OUT) :: &
     DATA
   INTEGER(KIND=JPIM), DIMENSION(:), INTENT(OUT) :: &
     STATUS
   INTEGER(KIND=JPIM), INTENT(OUT) :: &
     IERROR
 
-  ${base_kind(ranksuff)}$(KIND=8), ${dim(ranksuff)}$ ${allocatable(ranksuff)}$ :: &
+  ${base_kind(ranksuff)}$(KIND=8) ${dimensio(ranksuff)}$ , ${allocatable(ranksuff)}$ :: &
     DATA8
   INTEGER(KIND=8) :: &
     COUNT8, DATATYPE8, SOURCE8, TAG8, COMM8, IERROR8
@@ -947,13 +941,13 @@ SUBROUTINE MPI_IRECV8_${ranksuff}$(DATA, COUNT, DATATYPE, SOURCE, TAG, COMM, REQ
 
   INTEGER(KIND=JPIM), INTENT(IN) :: &
     COUNT, DATATYPE, SOURCE, TAG, COMM
-  ${kind(ranksuff)}$, ${dim(ranksuff)}$ INTENT(OUT) :: &
+  ${datatype(ranksuff)}$ ${dimension(ranksuff)}$ ,INTENT(OUT) :: &
     DATA
   INTEGER(KIND=JPIM), INTENT(OUT) :: &
     REQUEST, IERROR
 
 #:if allocatable(ranksuff)
-  ${base_kind(ranksuff)}$(KIND=8), ${dim(ranksuff)}$ ${allocatable(ranksuff)}$ :: &
+  ${base_kind(ranksuff)}$(KIND=8) ${dimension(ranksuff)}$ ${allocatable(ranksuff)}$ :: &
     DATA8
 #:endif
   INTEGER(KIND=8) :: &
@@ -998,19 +992,19 @@ END SUBROUTINE MPI_IRECV8_${ranksuff}
 SUBROUTINE MPI_SCATTERV8_${ranksuff}$(SENDAREA, SENDCOUNTS, DISPLS, SENDTYPE, &
       RECVDATA, RECVCOUNT, RECVTYPE, ROOT, COMM, IERROR)
   
-  ${kind(ranksuff)}$, ${dim(ranksuff)}$ INTENT(IN) :: &
+  ${datatype(ranksuff)}$` ${dimension(ranksuff)}$ ,`INTENT(IN) :: &
     SENDAREA
   INTEGER(KIND=JPIM), DIMENSION(:), INTENT(IN) :: &
     SENDCOUNTS, DISPLS
   INTEGER(KIND=JPIM), INTENT(IN) :: &
     SENDTYPE, RECVCOUNT, RECVTYPE, ROOT, COMM
-  ${kind(ranksuff)}$, ${dim(ranksuff)}$ INTENT(OUT) :: &
+  ${datatype(ranksuff)}$ ${dimension(ranksuff)}$ ,INTENT(OUT) :: &
     RECVDATA
   INTEGER(KIND=JPIM), INTENT(OUT) :: &
     IERROR
 
 #:if cast(ranksuff)
-  ${base_kind(ranksuff)}$(KIND=8), ${dim(ranksuff)}$ ${allocatable} :: &
+  ${base_kind(ranksuff)}$(KIND=8) ${dimension(ranksuff)}$ ,${allocatable} :: &
     SENDAREA8, RECVDATA8
 #:endif
   INTEGER(KIND=8), DIMENSION(:), ALLOCATABLE :: &

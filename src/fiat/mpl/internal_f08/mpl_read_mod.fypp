@@ -70,7 +70,7 @@ MODULE MPL_READ_MOD
 !        R. EL Khatib 24-May-2011 Change ifdef MPI2 into ifndef MPI1
 !     -----------------------------------------------------------------
 !
-USE EC_PARKIND  ,ONLY : JPIM, JPRM
+USE EC_PARKIND  ,ONLY : JPIM, JPRM, JPRD
 
 USE MPL_MPIF
 USE MPL_DATA_MODULE
@@ -81,14 +81,6 @@ IMPLICIT NONE
 
 #:set ranksuffs = ['2IM','2RD']
 
-#:def mpi_datatype(ranksuff)
-#: set typ = {'2IM' : 'MPI_INTEGER', '2RD': 'MPI_REAL8' }
-      ${typ[ranksuff]}$
-#:enddef
-#:def kind(ranksuff)
-#: set typ = {'2IM' : 'INTEGER(KIND=JPIM)', '2RD': 'REAL(KIND=JPRB)'' }
-      ${typ[ranksuff]}$
-#:enddef
       
 INTERFACE MPL_READ
 #:for ranksuff in ranksuffs
@@ -119,7 +111,7 @@ SUBROUTINE MPL_READ_${ranksuff}$(KFPTR,KOP,BUF,KLEN,KREQ,KERROR)
 INTEGER(KIND=JPIM),INTENT(IN) :: KFPTR,KOP,KLEN
 INTEGER(KIND=JPIM),INTENT(OUT) :: KERROR
 !  REAL(KIND=JPRM) PBUF(:)  ! TODO CHECK THIS SHOULD BE JPRD, NO ?
-${kind(ranksuff)}$ BUF(:)      
+${ecType.datatype(ranksuff)}$ :: BUF(:)      
 INTEGER(KIND=JPIM) KREQ
 
 
@@ -154,11 +146,13 @@ ENDIF
 IF( KOP == 1 ) THEN
 
 ! blocking read, non collective, shared file pointer
-        
+
+! TODO:
+! Work out why interface of MPI_FILE_READ_SHARED,etc not selected by type
   CALL MPI_FILE_READ_SHARED(KFPTR,&
                            & BUF,&
                            & KLEN,&
-                           & ${mpi_datatype(ranksuff)}$ ,& !
+                           & ${ecType.mpi_datatype(ranksuff)}$ ,& !
                            & STATUS,&
                            & KERROR)
 
@@ -169,7 +163,7 @@ ELSEIF( KOP == 2 ) THEN
   CALL MPI_FILE_READ_ORDERED(KFPTR,&
                             & BUF,&
                             & KLEN,&
-                            & ${mpi_datatype(ranksuff)}$,&
+                            & ${ecType.mpi_datatype(ranksuff)}$,&
                             & STATUS,&
                             & KERROR)
 
@@ -180,7 +174,7 @@ ELSEIF( KOP == 3 ) THEN
   CALL MPI_FILE_IREAD_SHARED(KFPTR,&
                             & BUF,&
                             & KLEN,&
-                            &${mpi_datatype(ranksuff)}$,&
+                            &${ecType.mpi_datatype(ranksuff)}$,&
                             & KREQ,&
                             & KERROR)
 
@@ -191,7 +185,7 @@ ELSEIF( KOP == 4 ) THEN
   CALL MPI_FILE_READ_ORDERED_BEGIN(KFPTR,&
                                   & BUF,&
                                   & KLEN,&
-                                  & ${mpi_datatype(ranksuff)}$,&
+                                  & ${ecType.mpi_datatype(ranksuff)}$,&
                                   & KERROR)
 
 ELSEIF( KOP == 5 ) THEN

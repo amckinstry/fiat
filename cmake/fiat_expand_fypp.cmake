@@ -1,5 +1,5 @@
-# (C) Copyright 2022- ECMWF.
-# (C) Copyright 2022- Meteo-France.
+# (C) Copyright 2026- ECMWF.
+# (C) Copyright 2026- Meteo-France.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -43,14 +43,13 @@ macro( fiat_expand_fypp )
 
     foreach (SRC ${_PAR_INPUT_SRCS} )
 
-      add_custom_command (OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${SRC}.F90
-    	  COMMAND ${FYPP} -m os ${fypp_defines} -M ${_PAR_PYTHON_MODULE_DIR} -m ecType
-          ${_PAR_SOURCE_DIR}/${SRC}.fypp > ${CMAKE_CURRENT_BINARY_DIR}/${SRC}.F90
-        DEPENDS ${_PAR_SOURCE_DIR}/${SRC}.fypp
-        VERBATIM)
+      string (REPLACE ".fypp" ".F90" DEST "${SRC}")
 
-      list(APPEND ${_PAR_OUTPUT_SRCS} ${CMAKE_CURRENT_BINARY_DIR}/${SRC}.F90)
+       # add_custom_command (OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${DEST}
+       execute_process(COMMAND ${FYPP} -m os ${fypp_defines} -M ${_PAR_PYTHON_MODULE_DIR} -m ecType
+          ${_PAR_SOURCE_DIR}/${SRC} ${CMAKE_CURRENT_BINARY_DIR}/${DEST})
 
+      list(APPEND ${_PAR_OUTPUT_SRCS} ${CMAKE_CURRENT_BINARY_DIR}/${DEST})
     endforeach ()
 
 endmacro()

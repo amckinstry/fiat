@@ -1,5 +1,4 @@
-! (C) Copyright 2005- ECMWF.
-! (C) Copyright 2013- Meteo-France.
+! (C) Copyright 2005- ECMWF.  ! (C) Copyright 2013- Meteo-France.
 ! 
 ! This software is licensed under the terms of the Apache Licence Version 2.0
 ! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -70,25 +69,15 @@ MODULE MPL_WRITE_MOD
 !        R. EL Khatib 24-May-2011 Change ifdef MPI2 into ifndef MPI1
 !     -----------------------------------------------------------------
 !
-USE EC_PARKIND  ,ONLY : JPIM ,JPRM
+USE EC_PARKIND  ,ONLY : JPIM ,JPRM, JPRD
 
-USE MPL_MPIF
-USE MPL_DATA_MODULE
-USE MPL_MESSAGE_MOD
-USE MPL_IOINIT_MOD
-
+USE MPL_MPI,         ONLY : MPI_REQUEST, MPI_STATUS, MPI_FILE, MPI_INTEGER, MPI_REAL8
+USE MPL_DATA_MODULE, ONLY : MPL_RANK
+USE MPL_IOINIT_MOD,  ONLY : MPL_NUMIO, MPL_IOP
 IMPLICIT NONE
 
 #:set ranksuffs = [ '2IM','2RD']
 
-#:def mpi_datatype(ranksuff)
-#: set typ = {'2IM' : 'MPI_INTEGER', '2RD': 'MPI_REAL8' }
-      ${typ[ranksuff]}$
-#:enddef
-#:def kind(ranksuff)
-#: set typ = {'2IM' : 'INTEGER(KIND=JPIM)', '2RD': 'REAL(KIND=JPRB)'' }
-      ${typ[ranksuff]}$
-#:enddef
 
 INTERFACE MPL_WRITE
 #:for ranksuff in ranksuffs
@@ -107,19 +96,22 @@ SUBROUTINE MPL_WRITE_${ranksuff}$(KFPTR,KOP,BUF,KLEN,KREQ,KERROR)
 
 #:if defined('USE_8_BYTE_WORDS')
   USE MPI4TO8, ONLY : &
-#:for method in ['WRITE_SHARED','WRITE_ORDERED','IWRITE_SHARED','IWRITE_ORDERED_BEGIN','IWRITE_ORDERED_END']
+#:for method in ['WRITE_SHARED','WRITE_ORDERED','IWRITE_SHARED','WRITE_ORDERED_BEGIN','WRITE_ORDERED_END']
        MPI_FILE_${method}$ => MPI_FILE_${method}$8, &
 #:endfor       
     MPI_WAIT => MPI_WAIT8
 #:endif
 
-INTEGER(KIND=JPIM),INTENT(IN) :: KFPTR,KOP,KLEN
+INTEGER(KIND=JPIM),INTENT(IN) :: KFPTR
+TYPE(MPI_FILE) :: KFPTR_LOCAL
+INTEGER(KIND=JPIM),INTENT(IN) :: KOP,KLEN
 INTEGER(KIND=JPIM),INTENT(OUT) :: KERROR
-${kind(ranksuff)}$ BUF(:)
-INTEGER(KIND=JPIM) KREQ
+${ecType.datatype(ranksuff)}$ :: BUF(:)
+TYPE(MPI_REQUEST)             :: KREQ
+TYPE(MPI_STATUS)              :: STATUS
 
+KFPTR_LOCAL%MPI_VAL=KFPTR
 
-INTEGER(KIND=JPIM) STATUS(MPI_STATUS_SIZE)
 !
 #:if not defined('MPI1')
 
@@ -151,10 +143,10 @@ IF( KOP == 1 ) THEN
 
 ! blocking write, non collective, shared file pointer
         
-  CALL MPI_FILE_WRITE_SHARED(KFPTR,&
+  CALL MPI_FILE_WRITE_SHARED(KFPTR_LOCAL,&
                            & BUF,&
                            & KLEN,&
-                           & ${mpi_datatype(ranksuff)}$,&
+                           & ${ecType.mpi_datatype(ranksuff)}$,&
                            & STATUS,&
                            & KERROR)
 
@@ -162,10 +154,10 @@ ELSEIF( KOP == 2 ) THEN
 
 ! blocking write, collective, ordered with shared file pointer
 
-  CALL MPI_FILE_WRITE_ORDERED(KFPTR,&
+  CALL MPI_FILE_WRITE_ORDERED(KFPTR_LOCAL,&
                             & BUF,&
                             & KLEN,&
-                            & ${mpi_datatype(ranksuff)}$,&
+                            & ${ecType.mpi_datatype(ranksuff)}$,&
                             & STATUS,&
                             & KERROR)
 
@@ -173,10 +165,10 @@ ELSEIF( KOP == 3 ) THEN
 
 ! non blocking write, non collective, shared file pointer
 
-  CALL MPI_FILE_IWRITE_SHARED(KFPTR,&
+  CALL MPI_FILE_IWRITE_SHARED(KFPTR_LOCAL,&
                             & BUF,&
                             & KLEN,&
-                            & ${mpi_datatype(ranksuff)}$,&
+                            & ${ecType.mpi_datatype(ranksuff)}$,&
                             & KREQ,&
                             & KERROR)
 
@@ -184,10 +176,10 @@ ELSEIF( KOP == 4 ) THEN
 
 ! non blocking write, collective, ordered with shared file pointer
 
-  CALL MPI_FILE_WRITE_ORDERED_BEGIN(KFPTR,&
+  CALL MPI_FILE_WRITE_ORDERED_BEGIN(KFPTR_LOCAL,&
                                   & BUF,&
                                   & KLEN,&
-                                  & ${mpi_datatype(ranksuff)}$,&
+                                  & ${ecType.mpi_datatype(ranksuff)}$,&
                                   & KERROR)
 
 ELSEIF( KOP == 5 ) THEN
@@ -198,7 +190,7 @@ ELSEIF( KOP == 5 ) THEN
 
 ELSEIF( KOP == 6 ) THEN
 
-  CALL MPI_FILE_WRITE_ORDERED_END(KFPTR,&
+  CALL MPI_FILE_WRITE_ORDERED_END(KFPTR_LOCAL,&
                                 & BUF,&
                                 & STATUS,&
                                 & KERROR)

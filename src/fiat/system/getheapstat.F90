@@ -59,7 +59,7 @@ IF (KOUT >= 0 .AND. CLENV == '1') THEN
 
     ICOUNTS(:) = ISIZE
     CALL MPL_GATHERV(ZSEND(:), KROOT=1, KRECVCOUNTS=ICOUNTS(:), &
-                    &PRECVBUF=ZRECV, CDSTRING='GETHEAPSTAT:')
+                    &RECVBUF=ZRECV, CDSTRING='GETHEAPSTAT:')
 
     IF (IMYPROC == 1) THEN
 !     Not more than 132 columns, please :-)

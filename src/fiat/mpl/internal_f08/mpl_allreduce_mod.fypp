@@ -10,37 +10,10 @@
 
 MODULE MPL_ALLREDUCE_MOD
 
-#:set ranksuffs_scalar = ['1RD', '1RM', '1IM', '1IB']
-#:set ranksuffs_1d     = ['2RM','2RD', '2IM','2IB']
-#:set ranksuffs_2d     = ['2RM','3RD']      
+#:set ranksuffs_scalar = ['0RD', '0RM', '0IM', '0IB']
+#:set ranksuffs_1d     = ['1RM','1RD', '1IM','1IB']
+#:set ranksuffs_2d     = ['2RM','2RD']      
 
-
-#!  kind, size, datatype, dim
-#:set vdef = { '2RM' : ('REAL(KIND=JPRM)','4_JPIB', 'INT(MPI_REAL4)' ,1 ), &
-      & '2RD' : ('REAL(KIND=JPRD)','8_JPIB', 'INT(MPI_REAL8)',1 ), &
-      & '2IM' : ('INTEGER(KIND=JPIM)', '4_JPIB' , 'INT(MPI_INTEGER)', 1), &
-      & '2IB' : ('INTEGER(KIND=JPIB)','8_JPIB', 'INT(MPI_INTEGER8)', 1 ), &
-      & '1RD' : ('REAL(KIND=JPRD)','8_JPIB', 'INT(MPI_REAL8)', 0 ),&
-      & '1RM' : ('REAL(KIND=JPRM)', '4_JPIB','INT(MPI_REAL4)', 0), &
-      & '1IM' : ('INTEGER(KIND=JPIM)', '4_JPIB', 'INT(MPI_INTEGER)',0  ), &
-      & '1IB' : ('INTEGER(KIND=JPIB)', '8_JPIB', 'INT(MPI_INTEGER8)',0), &
-      & '3RM' : ('REAL(KIND=JPRM)','4_JPIB', 'INT(MPI_REAL4)', 2), &
-      & '3RD' : ('REAL(KIND=JPRD)', '8_JPIB' ,'INT(MPI_REAL8)', 2) }
-
-#:def kind(type)
-  ${vdef[ranksuff][0]}$
-#:enddef
-
-#:def size(ranksuff)
-  ${vdef[ranksuff][1]}$
-#:enddef
-#:def datatype(ranksuff)
-  ${vdef[ranksuff][2]}$
-#:enddef
-#:def dim(ranksuff)
-  #: set typ = {0: '', 1: 'DIMENSION(:)',2:'DIMENSION(:,:)' }
-  ${typ[vdef[ranksuff][3]]}$
-#:enddef
 
       
 !**** MPL_ALLREDUCE Perform collective communication
@@ -97,18 +70,17 @@ MODULE MPL_ALLREDUCE_MOD
 
 !     ------------------------------------------------------------------
 
-USE EC_PARKIND , ONLY : JPRD, JPIM, JPRM, JPIB
-USE OML_MOD   ,ONLY : OML_MY_THREAD
-
+USE EC_PARKIND ,       ONLY : JPRD, JPIM, JPRM, JPIB
+USE OML_MOD,           ONLY : OML_MY_THREAD
 USE MPL_MPIF
 USE MPL_DATA_MODULE
-USE MPL_STATS_MOD
-USE YOMMPLSTATS
-USE MPL_MESSAGE_MOD
-USE MPL_SEND_MOD
-USE MPL_RECV_MOD
-USE MPL_WAIT_MOD
-USE MPL_BROADCAST_MOD
+USE MPL_STATS_MOD,     ONLY : MPL_RECVSTATS, MPL_SENDSTATS
+USE YOMMPLSTATS,       ONLY : LMPLSTATS
+USE MPL_MESSAGE_MOD,   ONLY : MPL_MESSAGE
+USE MPL_SEND_MOD,      ONLY : MPL_SEND
+USE MPL_RECV_MOD,      ONLY : MPL_RECV
+! USE MPL_WAIT_MOD, ONLY: MPL_WAIT
+USE MPL_BROADCAST_MOD, ONLY : MPL_BROADCAST
 
 IMPLICIT NONE
 
@@ -136,13 +108,13 @@ CONTAINS
 SUBROUTINE MPL_ALLREDUCE_${ranksuff}$(PSENDBUF,CDOPER,LDREPROD, &
                             & KCOMM,KERROR,CDSTRING)
 
-${kind(ranksuff)}$  ${dim(ranksuff)}$ ,INTENT(INOUT)     :: PSENDBUF
+${ecType.datatype(ranksuff)}$  ${ecType.dimension(ranksuff)}$ ,INTENT(INOUT)     :: PSENDBUF
 CHARACTER(LEN=*),INTENT(IN)    :: CDOPER
 LOGICAL,INTENT(IN),OPTIONAL :: LDREPROD
 INTEGER(KIND=JPIM),INTENT(IN),OPTIONAL :: KCOMM
 INTEGER(KIND=JPIM),INTENT(OUT),OPTIONAL :: KERROR
 CHARACTER(LEN=*),INTENT(IN),OPTIONAL :: CDSTRING
-${kind(ranksuff)}$ ISENDBUF(1)
+${ecType.datatype(ranksuff)}$ ISENDBUF(1)
 
 ISENDBUF(1) = PSENDBUF
 CALL MPL_ALLREDUCE(ISENDBUF,CDOPER,LDREPROD,KCOMM,KERROR,CDSTRING)
@@ -162,13 +134,13 @@ SUBROUTINE MPL_ALLREDUCE_${ranksuff}$(PSENDBUF,CDOPER,LDREPROD, &
     MPI_ALLREDUCE => MPI_ALLREDUCE8
 #:endif
 
-${kind(ranksuff)}$ ,INTENT(INOUT)     :: PSENDBUF(:)
+${ecType.datatype(ranksuff)}$  ${ecType.dimension(ranksuff)}$ ,INTENT(INOUT)     :: PSENDBUF
 CHARACTER(LEN=*),INTENT(IN)    :: CDOPER
 LOGICAL,INTENT(IN),OPTIONAL :: LDREPROD
 INTEGER(KIND=JPIM),INTENT(IN),OPTIONAL :: KCOMM
 INTEGER(KIND=JPIM),INTENT(OUT),OPTIONAL :: KERROR
 CHARACTER(LEN=*),INTENT(IN),OPTIONAL :: CDSTRING
-${kind(type)}$, ALLOCATABLE :: PRECVBUF(:)
+${ecType.datatype(ranksuff)}$, ALLOCATABLE :: PRECVBUF(:)
 INTEGER(KIND=JPIM) :: ITAG, ICOUNT
 LOGICAL            :: LLREPRODSUM
 INTEGER(KIND=JPIM) :: ISENDCOUNT,ICOMM,IERROR,IOPER
@@ -215,7 +187,7 @@ ISENDCOUNT = SIZE(PSENDBUF)
 #:if not defined('NAGFOR')
 ! IF (ISENDCOUNT > 0) THEN IF(
 ! (LOC(PSENDBUF(UBOUND(PSENDBUF,1)))-LOC(PSENDBUF(LBOUND(PSENDBUF,1))))
-! /= ${size(ranksuff)}$*(ISENDCOUNT - 1) ) THEN CALL
+! /= ${ecType.datasize(ranksuff)}$*(ISENDCOUNT - 1) ) THEN CALL
 ! MPL_MESSAGE(CDMESSAGE='MPL_ALLREDUCE: BUFFER NOT CONTIGUOUS
 ! ',LDABORT=LLABORT) ENDIF ENDIF
 #:endif
@@ -244,12 +216,12 @@ ISENDCOUNT = SIZE(PSENDBUF)
 !   CALL MPL_BROADCAST(PRECVBUF,KTAG=ITAG,KCOMM=ICOMM,KROOT=1,KERROR=IERROR)
 ! ELSE  
   IF ( MPL_NUMPROC > 1 ) &
-  CALL MPI_ALLREDUCE(PSENDBUF,PRECVBUF,ISENDCOUNT,${datatype(ranksuff)}$, &
+  CALL MPI_ALLREDUCE(PSENDBUF,PRECVBUF,ISENDCOUNT,INT(${ecType.mpi_datatype(ranksuff)}$), &
                   &  IOPER,ICOMM,IERROR)
 
   IF(LMPLSTATS) THEN
-    CALL MPL_SENDSTATS(ISENDCOUNT,${datatype(ranksuff)}$)
-    CALL MPL_RECVSTATS(ISENDCOUNT,${datatype(ranksuff)}$)
+    CALL MPL_SENDSTATS(ISENDCOUNT,INT(${ecType.mpi_datatype(ranksuff)}$))
+    CALL MPL_RECVSTATS(ISENDCOUNT,INT(${ecType.mpi_datatype(ranksuff)}$))
   ENDIF
 
 ! ENDIF
@@ -268,8 +240,8 @@ CALL MPI_ALLREDUCE(PSENDBUF,PRECVBUF,ISENDCOUNT,INT(MPI_INTEGER), &
                 &  IOPER,ICOMM,IERROR)
 
 IF(LMPLSTATS) THEN
-  CALL MPL_SENDSTATS(ISENDCOUNT,${datatype(ranksuff)}$)
-  CALL MPL_RECVSTATS(ISENDCOUNT,${datatype(ranksuff)}$)
+  CALL MPL_SENDSTATS(ISENDCOUNT,INT(${ecType.mpi_datatype(ranksuff)}$))
+  CALL MPL_RECVSTATS(ISENDCOUNT,INT(${ecType.mpi_datatype(ranksuff)}$))
 ENDIF
 
 IF(MPL_OUTPUT > 1 )THEN
@@ -301,13 +273,13 @@ SUBROUTINE MPL_ALLREDUCE_${ranksuff}$ (PSENDBUF,CDOPER,LDREPROD, &
     MPI_ALLREDUCE => MPI_ALLREDUCE8
 #:endif
 
-${kind(ranksuff)}$ ,INTENT(INOUT)        :: PSENDBUF(:,:)
+${ecType.datatype(ranksuff)}$  ${ecType.dimension(ranksuff)}$ ,INTENT(INOUT)     :: PSENDBUF
 CHARACTER(LEN=*),INTENT(IN)    :: CDOPER
 LOGICAL,INTENT(IN),OPTIONAL :: LDREPROD
 INTEGER(KIND=JPIM),INTENT(IN),OPTIONAL :: KCOMM
 INTEGER(KIND=JPIM),INTENT(OUT),OPTIONAL :: KERROR
 CHARACTER(LEN=*),INTENT(IN),OPTIONAL :: CDSTRING
-${kind(ranksuff)}$            :: PRECVBUF(SIZE(PSENDBUF(:,1)),SIZE(PSENDBUF(1,:)))
+${ecType.datatype(ranksuff)}$            :: PRECVBUF(SIZE(PSENDBUF(:,1)),SIZE(PSENDBUF(1,:)))
 INTEGER(KIND=JPIM) ITAG, ICOUNT
 LOGICAL LLREPRODSUM
 INTEGER(KIND=JPIM) :: ISENDCOUNT,ICOMM,IERROR,IOPER
@@ -348,7 +320,7 @@ ENDIF
 ISENDCOUNT = SIZE(PSENDBUF)
 !#ifndef NAGFOR
 !IF (ISENDCOUNT > 0) THEN
-!  IF( (LOC(PSENDBUF(UBOUND(PSENDBUF,1)))-LOC(PSENDBUF(LBOUND(PSENDBUF,1)))) /= ${size(ranksuff)}$*(ISENDCOUNT - 1) ) THEN
+!  IF( (LOC(PSENDBUF(UBOUND(PSENDBUF,1)))-LOC(PSENDBUF(LBOUND(PSENDBUF,1)))) /= ${ecType.datasize(ranksuff)}$*(ISENDCOUNT - 1) ) THEN
 !    CALL MPL_MESSAGE(CDMESSAGE='MPL_ALLREDUCE: BUFFER NOT CONTIGUOUS ',LDABORT=LLABORT)
 !  ENDIF
 !ENDIF
@@ -396,12 +368,12 @@ ISENDCOUNT = SIZE(PSENDBUF)
 
 !ELSE
   IF ( MPL_NUMPROC > 1 ) &
-  CALL MPI_ALLREDUCE(PSENDBUF,PRECVBUF,ISENDCOUNT,${datatype(ranksuff)}$, &
+  CALL MPI_ALLREDUCE(PSENDBUF,PRECVBUF,ISENDCOUNT,INT(${ecType.mpi_datatype(ranksuff)}$), &
                   &  IOPER,ICOMM,IERROR)
 
   IF(LMPLSTATS) THEN
-    CALL MPL_SENDSTATS(ISENDCOUNT,${datatype(ranksuff)}$)
-    CALL MPL_RECVSTATS(ISENDCOUNT,${datatype(ranksuff)}$)
+    CALL MPL_SENDSTATS(ISENDCOUNT,INT(${ecType.mpi_datatype(ranksuff)}$))
+    CALL MPL_RECVSTATS(ISENDCOUNT,INT(${ecType.mpi_datatype(ranksuff)}$))
   ENDIF
 
 !ENDIF

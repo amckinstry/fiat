@@ -77,29 +77,7 @@ USE YOMMPLSTATS
 USE MPL_MESSAGE_MOD
 USE MPL_MYRANK_MOD
 
-#:set ranksuffs = ['2RM', '2RD', '2IM']
-      
-#! type: (kind, datatype , senddim, recvdim )
-#:set vdef = { &
-      & '2RM' :     ('REAL(KIND=JPRM)',     'MPI_REAL4', 1 , 1 ), &
-      & '2RD' :     ('REAL(KIND=JPRD)',    'INT(MPI_REAL8)', 1, 1  ), &
-      & '2IM'  :      ('INTEGER(KIND=JPIM)', 'INT(MPI_INTEGER)', 1,1 ),  &
-     & }      
-
-#:def kind(type)
-  ${vdef[type][0]}$
-#:enddef
-
-#:def datatype(type)
-  ${vdef[type][1]}$
-#:enddef
-
-#:def dim(type)
-  #: set typ = {0: '', 1: 'DIMENSION(:)',2:'DIMENSION(:,:)' }
-  #: set y = vdef[type][2]
-  ${typ[y]}$
-#:enddef
-
+#:set ranksuffs = ['1RM', '1RD', '1IM']
       
 IMPLICIT NONE
 PRIVATE
@@ -225,9 +203,9 @@ SUBROUTINE MPL_SCATTERV_${ranksuff}$(PRECVBUF,KROOT,PSENDBUF,KSENDCOUNTS,KSENDDI
 #:endif
 
 
-${kind(ranksuff)}$ ${dim(ranksuff)}$ INTENT(OUT) :: PRECVBUF
+${ecType.datatype(ranksuff)}$  ${ecType.dimension(ranksuff)}$  , INTENT(OUT) :: PRECVBUF
 INTEGER(KIND=JPIM), INTENT(IN) :: KROOT
-${kind(ranksuff)}$, INTENT(IN),OPTIONAL  :: PSENDBUF(:)
+${ecType.datatype(ranksuff)}$, INTENT(IN),OPTIONAL  :: PSENDBUF(:)
 INTEGER(KIND=JPIM), INTENT(IN),OPTIONAL :: KSENDCOUNTS(:), KSENDDISPL(:)
 INTEGER(KIND=JPIM), INTENT(IN),OPTIONAL :: KCOMM,KMP_TYPE
 INTEGER(KIND=JPIM),INTENT(OUT),OPTIONAL :: KERROR,KREQUEST
@@ -245,34 +223,34 @@ IF(IPL_MYRANK == IROOT) THEN
   ISENDBUFSIZE=SIZE(PSENDBUF)
   CALL MPL_SCATTERV_PREAMB2(KSENDCOUNTS,ISENDDISPL,KSENDDISPL,CDSTRING)
   IF(IMP_TYPE == JP_BLOCKING_STANDARD .OR. IMP_TYPE == JP_BLOCKING_BUFFERED) THEN
-    CALL MPI_SCATTERV(PSENDBUF,KSENDCOUNTS,ISENDDISPL,${datatype(ranksuff)}, &
-     & PRECVBUF,IRECVCOUNT,${datatype(ranksuff)}$,IROOT-1,ICOMM,IERROR)
+    CALL MPI_SCATTERV(PSENDBUF,KSENDCOUNTS,ISENDDISPL,${ecType.mpi_datatype(ranksuff)}$, &
+     & PRECVBUF,IRECVCOUNT,${ecType.mpi_datatype(ranksuff)}$,IROOT-1,ICOMM,IERROR)
   ELSEIF(IMP_TYPE == JP_NON_BLOCKING_STANDARD .OR. IMP_TYPE == JP_NON_BLOCKING_BUFFERED) THEN
-    CALL MPI_ISCATTERV(PSENDBUF,KSENDCOUNTS,ISENDDISPL,${datatype(ranksuff)}$, &
-     & PRECVBUF,IRECVCOUNT,${datatype(ranksuff)}$,IROOT-1,ICOMM,KREQUEST,IERROR)
+    CALL MPI_ISCATTERV(PSENDBUF,KSENDCOUNTS,ISENDDISPL,${ecType.mpi_datatype(ranksuff)}$, &
+     & PRECVBUF,IRECVCOUNT,${ecType.mpi_datatype(ranksuff)}$,IROOT-1,ICOMM,KREQUEST,IERROR)
   ENDIF
   IF(LMPLSTATS) THEN
-    CALL MPL_SENDSTATS(SUM(KSENDCOUNTS),${datatype(ranksuff)}$)
-    CALL MPL_RECVSTATS(IRECVCOUNT,${datatype(ranksuff)}$)
+    CALL MPL_SENDSTATS(SUM(KSENDCOUNTS),${ecType.mpi_datatype(ranksuff)}$)
+    CALL MPL_RECVSTATS(IRECVCOUNT,${ecType.mpi_datatype(ranksuff)}$)
   ENDIF
 ELSE
   IF(IMP_TYPE == JP_BLOCKING_STANDARD .OR. IMP_TYPE == JP_BLOCKING_BUFFERED) THEN
-    CALL MPI_SCATTERV(ZDUM,1,1,${datatype(ranksuff)}$, &
-     & PRECVBUF,IRECVCOUNT,${datatype(ranksuff)}$,IROOT-1,ICOMM,IERROR)
+    CALL MPI_SCATTERV(ZDUM,1,1,${ecType.mpi_datatype(ranksuff)}$, &
+     & PRECVBUF,IRECVCOUNT,${ecType.mpi_datatype(ranksuff)}$,IROOT-1,ICOMM,IERROR)
   ELSEIF(IMP_TYPE == JP_NON_BLOCKING_STANDARD .OR. IMP_TYPE == JP_NON_BLOCKING_BUFFERED) THEN
-    CALL MPI_ISCATTERV(ZDUM,1,1,${datatype(ranksuff)}$, &
-     & PRECVBUF,IRECVCOUNT,${datatype(ranksuff)}$,IROOT-1,ICOMM,KREQUEST,IERROR)
+    CALL MPI_ISCATTERV(ZDUM,1,1,${ecType.mpi_datatype(ranksuff)}$, &
+     & PRECVBUF,IRECVCOUNT,${ecType.mpi_datatype(ranksuff)}$,IROOT-1,ICOMM,KREQUEST,IERROR)
   ENDIF
   IF(LMPLSTATS) THEN
-    CALL MPL_RECVSTATS(IRECVCOUNT,${datatype(ranksuff)}$)
+    CALL MPL_RECVSTATS(IRECVCOUNT,${ecType.mpi_datatype(ranksuff)}$)
   ENDIF
 ENDIF  
 
 IF(PRESENT(KERROR)) THEN
   KERROR=IERROR
 ELSE
-  IF (IERROR/=0) CALL MPL_MESSAGE(IERROR,'MPL_SCATTERV',&
-   & CDSTRING,LDABORT=LLABORT)
+  IF (IERROR/=0) CALL MPL_MESSAGE(CDMESSAGE='MPL_SCATTERV',&
+   & CDSTRING=CDSTRING,LDABORT=LLABORT)
 ENDIF
 
       

@@ -1,3 +1,4 @@
+
 ! (C) Copyright 2005- ECMWF.
 ! (C) Copyright 2013- Meteo-France.
 ! 
@@ -10,34 +11,11 @@
 
 MODULE MPL_ALLGATHERV_MOD
 
-#! :set types = [ 'REAL4', 'REAL8', 'INTEGER' ]
-#:set ranksuffs = ['2RM', '2RD', '2IM' ,'1IM']
+#! :set types = [ 'REAL4', 'REAL8', 'INTEGER', 'INT_SCALAR' ]
+#:set ranksuffs = ['1RM', '1RD', '1IM' ,'0IM']
 
-#! ranksuff: (kind, datatype , senddim, recvdim )
-#:set vdef = { &
-      & '2RM' :     ('REAL(KIND=JPRM)',     'MPI_REAL4', 1 , 1 ), &
-      & '2RD' :     ('REAL(KIND=JPRD)',    'INT(MPI_REAL8)', 1, 1  ), &
-      & '2IM' :     ('INTEGER(KIND=JPIM)', 'INT(MPI_INTEGER)', 1,1 ), &
-      & '1IM' :     ('INTEGER(KIND=JPIM)', 'INT(MPI_INTEGER)',0, 1), &
-      & }      
-
-#:def kind(ranksuff)
-  ${vdef[ranksuff][0]}$
-#:enddef
-
-#:def datatype(ranksuff)
-  ${vdef[ranksuff][1]}$
-#:enddef
-
-#:def senddim(ranksuff)
-  #: set typ = {0: '', 1: ',DIMENSION(:) ',2:',DIMENSION(:,:) ' }
-  ${typ[vdef[ranksuff][2]]}$
-#:enddef
-
-#:def recvdim(ranksuff)
-  #: set typ = {0: '', 1: ',DIMENSION(:)',2:',DIMENSION(:,:)' }
-  ${typ[vdef[ranksuff][3]]}$
-#:enddef
+#! TODO
+#! REAL4 (2RM) had size MPI_REAL4, everything else has INT(MPI_*) check
 
 
 !**** MPL_ALLGATHERV Send data to all processes
@@ -139,9 +117,9 @@ SUBROUTINE MPL_ALLGATHERV_${ranksuff}$(PSENDBUF,PRECVBUF,KRECVCOUNTS,KSENDCOUNT,
 #:endif
 
 
-${kind(ranksuff)}$ ${senddim(ranksuff)}$  :: PSENDBUF
-${kind(ranksuff)}$ ${recvdim(ranksuff)}$  :: PRECVBUF
-INTEGER(KIND=JPIM),INTENT(IN) :: KRECVCOUNTS(:)
+${ecType.datatype(ranksuff)}$ ${ecType.dimension(ranksuff)}$  :: PSENDBUF
+${ecType.datatype(ranksuff)}$                                 :: PRECVBUF(:)
+INTEGER(KIND=JPIM),INTENT(IN),OPTIONAL :: KRECVCOUNTS(:)
 INTEGER(KIND=JPIM),INTENT(IN),OPTIONAL :: KSENDCOUNT
 INTEGER(KIND=JPIM),INTENT(IN),OPTIONAL :: KRECVDISPL(:),KCOMM,KMP_TYPE
 INTEGER(KIND=JPIM),INTENT(OUT),OPTIONAL :: KERROR,KREQUEST
@@ -157,14 +135,15 @@ ITID = OML_MY_THREAD()
 IF(PRESENT(KSENDCOUNT)) THEN
   ISENDCOUNT = KSENDCOUNT
 ELSE
-#:if ranksuff == 'INT_SCALAR'
+#:if ecType.scalar(ranksuff)
   ISENDCOUNT = 1
+  IRECVCOUNT = 1   
 #:else
   ISENDCOUNT = SIZE(PSENDBUF)
+  IRECVCOUNT = SIZE(PRECVBUF)
 #:endif
   ISENDCOUNT = MAX(0,ISENDCOUNT)  ! Bug? on IBM
 ENDIF
-IRECVCOUNT = SIZE(PRECVBUF)
 
 !--------- Preamble repeated for threadsafe--------------
 IF(PRESENT(KCOMM)) THEN
@@ -201,15 +180,15 @@ ENDIF
 IERROR=0
       
 IF(IMP_TYPE == JP_BLOCKING_STANDARD .OR. IMP_TYPE == JP_BLOCKING_BUFFERED) THEN
-  CALL MPI_ALLGATHERV(PSENDBUF,ISENDCOUNT,${datatype(ranksuff)}$,PRECVBUF,&
-   & KRECVCOUNTS,IRECVDISPL,${datatype(ranksuff)}$,ICOMM,IERROR)
+  CALL MPI_ALLGATHERV(PSENDBUF,ISENDCOUNT,INT(${ecType.mpi_datatype(ranksuff)}$),PRECVBUF,&
+   & KRECVCOUNTS,IRECVDISPL,INT(${ecType.mpi_datatype(ranksuff)}$),ICOMM,IERROR)
 ELSEIF(IMP_TYPE == JP_NON_BLOCKING_STANDARD .OR. IMP_TYPE == JP_NON_BLOCKING_BUFFERED) THEN
-  CALL MPI_IALLGATHERV(PSENDBUF,ISENDCOUNT,${datatype(ranksuff)}$,PRECVBUF,&
-   & KRECVCOUNTS,IRECVDISPL,${datatype(ranksuff)}$,ICOMM,KREQUEST,IERROR)
+  CALL MPI_IALLGATHERV(PSENDBUF,ISENDCOUNT,INT(${ecType.mpi_datatype(ranksuff)}$),PRECVBUF,&
+   & KRECVCOUNTS,IRECVDISPL,INT(${ecType.mpi_datatype(ranksuff)}$),ICOMM,KREQUEST,IERROR)
 ENDIF
 IF(LMPLSTATS) THEN
-  CALL MPL_SENDSTATS(ISENDCOUNT,${datatype(ranksuff)}$)
-  CALL MPL_RECVSTATS(SUM(KRECVCOUNTS),${datatype(ranksuff)}$)
+  CALL MPL_SENDSTATS(ISENDCOUNT,INT(${ecType.mpi_datatype(ranksuff)}$))
+  CALL MPL_RECVSTATS(SUM(KRECVCOUNTS),INT(${ecType.mpi_datatype(ranksuff)}$))
 ENDIF
 
 IF(MPL_OUTPUT > 1 )THEN
