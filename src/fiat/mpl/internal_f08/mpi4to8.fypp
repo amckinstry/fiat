@@ -33,10 +33,11 @@ MODULE MPI4TO8
       & 'ORD' : (0,False,True,), &
       }
 
-#:set sendrecv_ranksuffs = ['1RM', '1R8','2RM','2RD','0IM','1IM','0CH','2IM','0RM','0RD' ]
+#:set sendrecv_ranksuffs = ['1RM', '1RD','2RM','2RD','0IM','1IM','0CH','2IM','0RM','0RD' ]
 #:set mpifile_ranksuffs =  ['1RD','1RM']
 #:set alltoallv_ranksuffs = ['1RD', '1RM']
-#:set gather_ranksuffs = ['1ID','0RD'], ['I8','R8_1']
+#:set gather_ranksuffs = ['1ID','0RD']
+      ! # , ['I8','R8_1']
 #:set allgatherv_ranksuffs = ['R4', 'R8', 'I4' ,'I1']
 #:set allreduce_ranksuffs = ['R4','R8','I4','R4_2D','R8_2D' ]
 #:set gatherv_ranksuffs = ['R4','R8','R4S','R8S','I4','I1','I4S','I4S_1','R8_1','R8S_1']
@@ -47,11 +48,6 @@ MODULE MPI4TO8
  #:if vdef[ranksuff][1] == True
    ALLOCATABLE
  #:endif
-#:enddef
-#:def dim(ranksuff)
-  #: set y = vdef[ranksuff][0]
-  #: set dimension = {0: '', 1: ',DIMENSION(:)',2:',DIMENSION(:,:)' }
-  ${dimension[y]}$
 #:enddef
 #:def is_allocatable(ranksuff)
   ${vdef[ranksuff][1]}$
@@ -141,7 +137,7 @@ CONTAINS
 SUBROUTINE MPI_ALLREDUCE8_${ranksuff}$(SENDDATA, RECVDATA, COUNT, DATATYPE, OP, &
                              COMM, IERROR)
 
-  ${datatype(ranksuff)}$, ${dimension(ranksuff)}$ INTENT(IN) :: &
+  ${ecType.datatype(ranksuff)}$, ${dimension(ranksuff)}$ INTENT(IN) :: &
     SENDDATA
   INTEGER(KIND=JPIM), INTENT(IN) :: &
     COUNT, DATATYPE, OP, COMM
@@ -418,7 +414,7 @@ END SUBROUTINE MPI_BSEND8_${ranksuff}
       
 SUBROUTINE MPI_ISEND8_${ranksuff}$ (DATA, COUNT, DATATYPE, DEST, TAG, COMM, REQUEST, IERROR)
 
-  ${datatype(ranksuff)}$, ${dim(ranksuff)}$ INTENT(IN) :: &
+  ${ecType.datatype(ranksuff)}$, ${ecType.dimension(ranksuff)}$ INTENT(IN) :: &
     DATA
   INTEGER(KIND=JPIM), INTENT(IN) :: &
     COUNT, DATATYPE, DEST, TAG, COMM

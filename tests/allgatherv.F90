@@ -90,6 +90,7 @@ sbufr   = mpl_rank
 sbufd   = mpl_rank
 scounts = mpl_rank
 rcounts = [ (i, i=1,nprocs) ]
+rbuf = 0
 
 select case(mode)
  case("blocking")
@@ -178,10 +179,10 @@ do i=1,nprocs
   rcounts(i) = mod(i+1,2)
 enddo
 select case(mode)
- case("blocking")
-  call mpl_allgatherv(mpl_rank,rbuf(1:nprocs)) ! the simplest no correctness test just interface functionality
+case("blocking")
+   call mpl_allgatherv(mpl_rank,rbuf(1:nprocs)) ! the simplest no correctness test just interface functionality
   call mpl_allgatherv(mpl_rank,rbuf,rcounts,ksendcount=mod(mpl_rank+1,2))
- case("nonblocking")
+case("nonblocking")
   call mpl_allgatherv(mpl_rank,rbuf,rcounts,ksendcount=mod(mpl_rank+1,2), &
     KMP_TYPE = JP_NON_BLOCKING_STANDARD, KREQUEST=request_i)
   call mpl_wait(request_i)

@@ -313,6 +313,13 @@ ecbuild_add_test( TARGET fiat_test_displs_container
 #
 #
 
+set (USING_MPI_WRAPPER "OFF")
+if (MPI_Fortran_FOUND)
+  if (NOT MPI_Fortran_LIBRARIES)
+    set (USING_MPI_WRAPPER "ON")
+  endif()
+endif()
+
 ecbuild_add_executable(
     TARGET  fiat-test-mpi-serial
     SOURCES test_mpi_serial.F90

@@ -10,7 +10,7 @@
 cmake_minimum_required( VERSION 3.12 FATAL_ERROR )
 find_package( ecbuild 3.4 REQUIRED HINTS ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../ecbuild )
 
-project( fiat LANGUAGES Fortran C CXX )
+project( fiat LANGUAGES C CXX Fortran )
 include( fiat_macros )
 ecbuild_enable_fortran( REQUIRED NO_MODULE_DIRECTORY )
 
@@ -23,8 +23,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 ### Options
 
 ecbuild_add_option( FEATURE OMP
-                    DESCRIPTION "support for OpenMP shared memory parallelism"
-                    REQUIRED_PACKAGES "OpenMP COMPONENTS Fortran C" )
+                    DESCRIPTION "Support for OpenMP shared memory parallelism"
+                    REQUIRED_PACKAGES "OpenMP COMPONENTS Fortran" )
 
 ecbuild_add_option( FEATURE MPI
                     DESCRIPTION "Support for MPI distributed parallelism"
@@ -80,30 +80,7 @@ ecbuild_add_option( FEATURE WARNINGS
                     DESCRIPTION "Add warnings to compiler" )
 
 if(CMAKE_C_COMPILER_ID STREQUAL "PGI" OR CMAKE_C_COMPILER_ID STREQUAL "NVHPC" )
-
- find_package(CUDAToolkit REQUIRED COMPONENTS nvtx3)
- find_package(NVHPC REQUIRED COMPONENTS HOSTUTILS)
-   
- find_library(NVHPCWRAPNVTX_LIB NAMES nvhpcwrapnvtx  REQUIRED HINTS  ${NVHPC_HOSTUTILS_LIBRARY_DIR} )
-
-  ecbuild_find_package(OpenACC REQUIRED)
-  ecbuild_add_option( FEATURE ACC  
-                      REQUIRED_PACKAGES "OpenACC COMPONENTS Fortran" 
-                      DEFAULT ON )
-  
-  enable_language( CUDA )
-  ecbuild_find_package(CUDAToolkit REQUIRED)
-  ecbuild_add_option( FEATURE GPU
-                      DEFAULT ON
-                      DESCRIPTION "Compile GPU version of fiat" )
-  
-  set( OpenACC_Fortran_FLAGS "-acc" )
-  set( OpenACC_Fortran_FLAGS "${OpenACC_Fortran_FLAGS} -ta=tesla:lineinfo,deepcopy,fastmath" )
-  set( OpenACC_Fortran_FLAGS "${OpenACC_Fortran_FLAGS} -Mcuda" )
-  
-  get_filename_component (CUDALIB ${CUDA_cublas_LIBRARY} DIRECTORY)
-  set (CMAKE_Fortran_FLAGS_RELWITHDEBINFO "${CMAKE_Fortran_FLAGS_RELWITHDEBINFO} ${OpenACC_Fortran_FLAGS} -L${CUDALIB} -Wl,-rpath,${CUDALIB}")
-  set (CMAKE_Fortran_FLAGS_RELWITHDEBINFO_INIT "${CMAKE_Fortran_FLAGS_RELWITHDEBINFO_INIT} ${OpenACC_Fortran_FLAGS} -L${CUDALIB} -Wl,-rpath,${CUDALIB}")
+    set (DEFAULT_DR_HOOK_NVTX ON)
 else()
     set (DEFAULT_DR_HOOK_NVTX OFF)
 endif()
@@ -120,23 +97,27 @@ ecbuild_add_option( FEATURE DR_HOOK_ROCTX
 
 ecbuild_find_package( NAME Realtime QUIET )
 
+
+## find fypp
+fiat_find_fypp()
+
+### Sources
+
+# define MPI_SERIAL_LIBRARIES before including src folder, for use in fiat library declaration
 if( ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   set(_whole_archive "-Wl,-force_load")
   set(_no_whole_archive "")
 else()
-  if("${CMAKE_Fortran_COMPILER_ID}" MATCHES "NAG")
-    set(_whole_archive "-Wl,-Wl,,--whole-archive")
-    set(_no_whole_archive "-Wl,-Wl,,--no-whole-archive")
-  else()
-    set(_whole_archive "-Wl,--whole-archive")
-    set(_no_whole_archive "-Wl,--no-whole-archive")
-  endif()
+  set(_whole_archive "-Wl,--whole-archive")
+  set(_no_whole_archive "-Wl,--no-whole-archive")
 endif()
-### Sources
-# define MPI_SERIAL_LIBRARIES before including src folder, for use in fiat library declaration
 set(MPI_SERIAL_LIBRARIES ${_whole_archive} mpi_serial ${_no_whole_archive})
 
-fiat_find_fypp()
+if("${CMAKE_Fortran_COMPILER_ID}" MATCHES "NAG")
+  set(_whole_archive "-Wl,-Xlinker,--whole-archive")
+  set(_no_whole_archive "-Wl,-Xlinker,--no-whole-archive")
+  set(MPI_SERIAL_LIBRARIES $<$<LINK_LANGUAGE:Fortran>:${_whole_archive} mpi_serial ${_no_whole_archive}>)
+endif()
 
 include( fiat_compiler_warnings )
 add_subdirectory(src)

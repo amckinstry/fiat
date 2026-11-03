@@ -7,115 +7,50 @@
 ! granted to it by virtue of its status as an intergovernmental organisation
 ! nor does it submit to any jurisdiction.
 
-! Provided for types  [ 'REAL4', 'REAL8', 'INTEGER' ]
+! Provided for types  [ 'REAL4', 'REAL8', 'INTEGER' ] (1RM, 1RD,1IM)
 
 program test_mpl_alltoallv_${ranksuff}$
     USE mpl_module,  only : MPL_ALLTOALLV, MPL_INIT, MPL_NPROC, MPL_END, &
-    		     	  & MPL_ABORT, MPL_MYRANK
+         & MPL_ABORT, MPL_MYRANK, MPL_COMM
+    USE MPL_MPI, ONLY: ${ecType.mpi_datatype(ranksuff)}$
     USE EC_PARKIND, ONLY : JPIM, JPIB, JPRM, JPRD
     implicit none
     
-    integer :: size, my_rank
-    ${ecType.datatype(ranksuff)}$ , allocatable :: buffer_send(:), buffer_recv(:)
-    integer :: buffer_send_length, buffer_recv_length
-    integer :: counts_send(3), displacements_send(3)
-    integer :: counts_recv(3), displacements_recv(3)
-    integer :: i
+    integer :: nproc, my_rank
+    ${ecType.datatype(ranksuff)}$ , allocatable :: sbuf(:), rbuf(:)
+    integer(kind=jpim),allocatable :: scounts(:), rcounts(:) ,sdispls(:),rdispls(:)
+    integer(kind=jpim) :: krequest, kcomm
+    integer :: i, ierr
+    character(len=-255) :: cdstring
 
-    ! Initialize MPI
     call MPL_Init()
 
-    ! Get the number of processes
-    size = MPL_nproc()
-
-    ! Check if the number of processes is 3
-    if (size /= 3) then
-        call MPL_Abort( "This application is meant to be run with 3 MPI processes.")
-    end if
-
-    ! Get my rank
+    nproc = MPL_nproc()
     my_rank = mpl_myrank()
 
+    allocate(sbuf(nproc*nproc), rbuf(nproc*nproc))
+    
     ! Define the buffer containing the values to send
-    select case (my_rank)
-    case (0)
-        buffer_send_length = 3
-        allocate(buffer_send(buffer_send_length))
-        buffer_send = [0, 100, 200]
-        print *, "Process 0, my values = ", buffer_send(1), buffer_send(2), buffer_send(3)
-    case (1)
-        buffer_send_length = 3
-        allocate(buffer_send(buffer_send_length))
-        buffer_send = [300, 400, 500]
-        print *, "Process 1, my values = ", buffer_send(1), buffer_send(2), buffer_send(3)
-    case (2)
-        buffer_send_length = 1
-        allocate(buffer_send(buffer_send_length))
-        buffer_send = [600]
-        print *, "Process 2, my value = ", buffer_send(1)
-    end select
-
-    ! Define my counts for sending
-    select case (my_rank)
-    case (0)
-        counts_send = [1, 2, 0]
-    case (1)
-        counts_send = [0, 0, 3]
-    case (2)
-        counts_send = [1, 0, 0]
-    end select
-
-    ! Define my displacements for sending
-    select case (my_rank)
-    case (0)
-        displacements_send = [0, 1, 0]
-    case (1)
-        displacements_send = [0, 0, 0]
-    case (2)
-        displacements_send = [0, 0, 0]
-    end select
-
-    ! Define the buffer for reception
-    select case (my_rank)
-    case (0)
-        buffer_recv_length = 2
-        allocate(buffer_recv(buffer_recv_length))
-    case (1)
-        buffer_recv_length = 2
-        allocate(buffer_recv(buffer_recv_length))
-    case (2)
-        buffer_recv_length = 3
-        allocate(buffer_recv(buffer_recv_length))
-    end select
-
-    ! Define my counts for receiving
-    select case (my_rank)
-    case (0)
-        counts_recv = [1, 0, 1]
-    case (1)
-        counts_recv = [2, 0, 0]
-    case (2)
-        counts_recv = [0, 3, 0]
-    end select
-
-    ! Define my displacements for reception
-    select case (my_rank)
-    case (0)
-        displacements_recv = [1, 0, 0]
-    case (1)
-        displacements_recv = [0, 0, 0]
-    case (2)
-        displacements_recv = [0, 0, 0]
-    end select
+    do i=1,nproc*nproc
+       sbuf(i) = i-1+100*my_rank
+       rbuf(i) = -(i-1)
+    end do
+    
+    allocate( scounts(nproc), rcounts(nproc) , rdispls(nproc), sdispls(nproc) )
+    do i = 1, nproc
+       scounts(i) = i-1
+       rcounts(i) = my_rank-1
+       rdispls(i) = (i-1)*my_rank
+       sdispls(i) = ((i-1)*i)/2
+    end do
 
     ! Perform the all-to-allv communication
-    call mpl_alltoallv(buffer_send ,counts_send, buffer_recv, counts_recv)
+    call mpl_alltoallv(sbuf ,scounts, rbuf, rcounts, KSENDDISPL=sdispls, KRECVDISPL=rdispls)
+    !call mpi_alltoallv(sbuf ,scounts, sdispls, ${ecType.mpi_datatype(ranksuff)}$%MPI_VAL, &
+    !     & rbuf, rcounts, rdispls, ${ecType.mpi_datatype(ranksuff)}$%MPI_VAL, mpl_comm, ierr)
+    ! call mpl_alltoallv(sbuf ,scounts, rbuf, rcounts)
 
-    ! Print the received values
-    print *, "Values received on process", my_rank, ":", (buffer_recv(i), i=1, buffer_recv_length)
-
-    ! Clean up
-    deallocate(buffer_send, buffer_recv)
+    deallocate( sbuf, rbuf, scounts, rcounts , sdispls, rdispls)
 
     ! Finalize MPI
     call MPL_End()

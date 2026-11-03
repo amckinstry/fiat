@@ -54,7 +54,9 @@ ecbuild_list_add_pattern( LIST fiat_src GLOB
     util/*.c util/*.F*
     )
 
+ecbuild_debug(DEBUG1 before internal_f08 ${fiat_src})
 add_subdirectory( mpl/internal_f08 )
+ecbuild_debug(DEBUG1 fiat_src_from_fypp ${fiat_src_from_fypp})
 LIST(APPEND fiat_src ${fiat_src_from_fypp})
 
 if( HAVE_MPL_F77_DEPRECATED)
@@ -70,6 +72,7 @@ else()
         ecbuild_info( "Not compiling mpi_f08_dummy_mod, because MPI is found" )
         ecbuild_list_exclude_pattern( LIST fiat_src REGEX mpl/internal_f08/mpi_f08_dummy_mod.F90 )
     endif()
+    ecbuild_debug(DEBUG1 fiat_src now ${fiat_src})
     ecbuild_info( "FIAT building with MPI_F08 MPL interface" )
 endif()
 ecbuild_list_exclude_pattern( LIST fiat_src REGEX drhook/extensions/*)
@@ -167,17 +170,11 @@ foreach( LIB_TYPE ${LIB_TYPES} )
         target_include_directories ( ${fiatlib} PRIVATE ${PAPI_INCLUDE_DIRS} )
     endif()
 
-
     if( ${CMAKE_SYSTEM_NAME} MATCHES "Darwin" )
         # Following should not be necessary; 
         # Probably a bug in the M1 prerelease of gfortran 10.2.0.4
         target_compile_definitions( ${fiatlib} PRIVATE $<$<COMPILE_LANG_AND_ID:Fortran,GNU>:__APPLE__>)
     endif()
-
-if( HAVE_OMP )
-    target_link_libraries( fiat PRIVATE OpenMP::OpenMP_Fortran OpenMP::OpenMP_C )
-endif()
-
 
     if( NOT HAVE_MPI )
         # define a preprocessor macro to improve messaging in dr_hook_init
@@ -207,6 +204,8 @@ endif()
       _MPI_Get_version
       _MPI_Get_library_version
     )
+
+
 endforeach()
 
 fiat_target_fortran_module_directory(
@@ -221,7 +220,6 @@ foreach (TARGET ${fiat_fypp_src})
     	  INSTALL_DIRECTORY module/fiat
     )
 endforeach()
-     
 
 ## Install and Export ##
 
