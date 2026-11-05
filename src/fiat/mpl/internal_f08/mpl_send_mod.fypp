@@ -9,33 +9,6 @@
 !
 
 MODULE MPL_SEND_MOD
-
-#!  TODO: Check
-#!  MPI_REAL4 for 1RM but INT(mpitype) for everything else
-
-#!:set types = ['REAL4','REAL8','INT','INT2', 'INT8', 'INT_SCALAR','REAL42','REAL43','REAL82','CHAR_SCALAR','CHAR','REAL4_SCALAR','REAL8_SCALAR','REAL83' ]
-
-#:set ranksuffs = ['1RM','1RD','1IM','2IM', '1IB', '0IM','2RM','3RM','2RD','0CH','1CH','0RM','0RD','3RD' ]
-
-
-#! Note exceptions for REAL4 ('1IRM')
-
-#:def icommtype(ranksuff)
-#{if ranksuff == '1RM'}# TYPE(MPI_COMM)  #{else}# INTEGER(KIND=JPIM) #{endif}#
-#:enddef      
-
-#:def icomm(ranksuff)
-#{if ranksuff == '1RM'}# ICOMM%MPI_VAL  #{else}# ICOMM #{endif}#
-#:enddef
-
-#:def dtype_size(ranksuff)
-#{if ranksuff == '1RM'}# ${ecType.mpi_datatype(ranksuff)}$  #{else}# MPI_REAL4#{endif}#
-#:enddef
-
-#:def attr(suffix)
-#:set typ = { '' : '', '_DEVICE': ',DEVICE' }
-     ${typ[suffix]}$
-#:enddef
       
 !**** MPL_SEND Send a message
 
@@ -44,8 +17,14 @@ MODULE MPL_SEND_MOD
 !     Send a message to a named source from a buffer.
 !     The data may be REAL*4, REAL*8,or INTEGER, one dimensional array
 !                     REAL*4,or REAL*8, two dimensional array
-!                  or INTEGER scalar
-
+!                     INTEGER scalar, or
+!                     CHARACTER one dimensional array or scalar
+  
+! TODO:
+!  Currently the fypp version uses PBUF as the name of the first (non-optional) argument
+!  In principle this could break on any code that uses eg MPL_SEND(CDCHAR=.. )
+  !  * CHECK: MPI_CHARACTER vs MPI_BYTE in size
+  !  
 !**   Interface.
 !     ----------
 !        CALL MPL_SEND
@@ -104,9 +83,16 @@ USE YOMMPLSTATS,     ONLY : LMPLSTATS
       
 IMPLICIT NONE
 
-      
+#! types = ['REAL4','REAL8','INT','INT2', 'INT8', 'INT_SCALAR','REAL42','REAL43','REAL82',
+#!   'CHAR_SCALAR','CHAR','REAL4_SCALAR','REAL8_SCALAR','REAL83' ]
 
-      
+#:set ranksuffs = ['1RM','1RD','1IM','2IM', '1IB', '0IM','2RM','3RM','2RD','0CH','1CH','0RM','0RD','3RD' ]
+
+#:def attr(suffix)
+#:set typ = { '' : '', '_DEVICE': ',DEVICE' }
+     ${typ[suffix]}$
+#:enddef
+
 INTERFACE MPL_SEND
 
 #:for ranksuff in ranksuffs
@@ -114,7 +100,6 @@ INTERFACE MPL_SEND
 #:endfor
 
 #:set suffixes = [ '' ]
-
 #:if defined('_CUDA')
 #:set suffixes = [ '', '_DEVICE']
 #:for ranksuff in ranksuffs
@@ -154,12 +139,14 @@ INTEGER(KIND=JPIM),INTENT(IN),OPTIONAL :: KCOMM,KMP_TYPE
 INTEGER(KIND=JPIM),INTENT(OUT),OPTIONAL :: KREQUEST,KERROR
 CHARACTER(LEN=*),INTENT(IN),OPTIONAL :: CDSTRING
 
-TYPE(MPI_REQUEST) :: IREQUEST_LOCAL
+TYPE(MPI_REQUEST)  :: IREQUEST_LOCAL
 INTEGER(KIND=JPIM) :: ICOUNT,IMP_TYPE,IERROR
 LOGICAL :: LLABORT=.TRUE.
 INTEGER(KIND=JPIM) :: ITID
-${icommtype(ranksuff)}$ :: ICOMM
-#:if ranksuff[1] != 'C'
+TYPE(MPI_COMM)     :: ICOMM
+#:if ecType.scalar(ranksuff)
+${ecType.datatype(ranksuff)}$    :: DUM
+#:else
 ${ecType.datatype(ranksuff)}$    :: DUM(1:0)
 #:endif
 ITID = OML_MY_THREAD()
@@ -171,69 +158,58 @@ IF(PRESENT(KMP_TYPE)) THEN
   IMP_TYPE=KMP_TYPE
 ELSE
   IMP_TYPE=MPL_METHOD
+
 ENDIF
 IF(PRESENT(KCOMM)) THEN
-  ${icomm(ranksuff)}$=KCOMM
+  ICOMM%MPI_VAL=KCOMM
 ELSE
-  ${icomm(ranksuff)}$=MPL_COMM_OML(ITID)
+  ICOMM%MPI_VAL=MPL_COMM_OML(ITID)
 ENDIF
-IF((KDEST < 1 .OR. KDEST >MPL_NPROC(${icomm(ranksuff)}$)) .AND. (.NOT. PRESENT (KCOMM))) THEN
+IF((KDEST < 1 .OR. KDEST > MPL_NPROC(ICOMM%MPI_VAL)) .AND. (.NOT. PRESENT (KCOMM))) THEN
   WRITE(MPL_ERRUNIT,*)'MPL_SEND: ERROR KDEST=',KDEST
   CALL MPL_MESSAGE(CDMESSAGE='MPL_SEND:ILLEGAL KDEST ',LDABORT=LLABORT)
 ENDIF
 
-#:if not ecType.scalar(ranksuff)
+#:if ecType.base_type(ranksuff) == 'CHARACTER'
+
+#:if ecType.scalar(ranksuff)
+ICOUNT = LEN(PBUF)
+#:else
+ICOUNT = LEN(PBUF) * SIZE(PBUF)
+#:endif
+#:else
+
+#:if  ecType.scalar(ranksuff)
+ICOUNT = 1
+#:else
 ICOUNT = SIZE(PBUF)
+
 #:if defined('MPL_CHECK_CONFIG') or not defined('NAGFOR')
 IF( .NOT. IS_CONTIGUOUS(PBUF) ) THEN
   CALL MPL_MESSAGE(CDMESSAGE='MPL_SEND: BUFFER NOT CONTIGUOUS ',LDABORT=LLABORT)
 ENDIF
 #:endif
-#:else
-ICOUNT = 1
+
+#:endif
 #:endif
 
 IF(LMPLSTATS) THEN
-#! TODO check
-#:if ranksuff == '2RM'
-CALL MPL_SENDSTATS(ICOUNT, MPI_REAL4%MPI_VAL)
-#:else
-CALL MPL_SENDSTATS(ICOUNT, ${dtype_size(ranksuff)}$%MPI_VAL )
-#:endif
+   CALL MPL_SENDSTATS(ICOUNT, ${ecType.mpi_datatype(ranksuff)}$%MPI_VAL )
 ENDIF
 
 IF (ICOUNT == 0) THEN
   IF(IMP_TYPE == JP_BLOCKING_STANDARD) THEN
-    CALL MPI_SEND(#{if ranksuff[1] == 'C'}# PBUF #{ else }# DUM #{ endif  }# &
-   & ,ICOUNT,${dtype_size(ranksuff)}$,KDEST-1,KTAG,ICOMM,IERROR)
+     CALL MPI_SEND(DUM,ICOUNT,${ecType.mpi_datatype(ranksuff)}$,KDEST-1,KTAG,ICOMM,IERROR)
   ELSE IF(IMP_TYPE == JP_BLOCKING_BUFFERED) THEN
-    CALL MPI_BSEND(#{if ranksuff[1] == 'C'}# PBUF #{ else }# DUM #{ endif  }# &
-   & ,ICOUNT,${dtype_size(ranksuff)}$,KDEST-1,KTAG,ICOMM,IERROR)
+    CALL MPI_BSEND(DUM,ICOUNT,${ecType.mpi_datatype(ranksuff)}$,KDEST-1,KTAG,ICOMM,IERROR)
   ELSE IF(IMP_TYPE == JP_NON_BLOCKING_STANDARD) THEN
-#! TODO check
-#:if ranksuff == '2RM'
-      CALL MPI_ISEND(DUM,ICOUNT,${dtype_size(ranksuff)}$,KDEST-1,KTAG,ICOMM, &
-      & IREQUEST_LOCAL,IERROR)
+     CALL MPI_ISEND(DUM,ICOUNT,${ecType.mpi_datatype(ranksuff)}$,KDEST-1,KTAG,ICOMM,IREQUEST_LOCAL,IERROR)
     KREQUEST=IREQUEST_LOCAL%MPI_VAL
-#:else
-      CALL MPI_ISEND(#{if ranksuff[1] == 'C'}# PBUF #{ else }# DUM #{ endif  }# &
-      & ,ICOUNT,${dtype_size(ranksuff)}$,KDEST-1,KTAG,ICOMM, &
-      & KREQUEST,IERROR)
-#:endif     
   ELSE IF(IMP_TYPE == JP_NON_BLOCKING_BUFFERED) THEN
-#! TODO Check
-#:if ranksuff == '2RM'
-    CALL MPI_IBSEND(DUM,ICOUNT,MPI_REAL4,KDEST-1,KTAG,ICOMM, &
-      & IREQUEST_LOCAL,IERROR)
+    CALL MPI_IBSEND(DUM,ICOUNT,${ecType.mpi_datatype(ranksuff)}$,KDEST-1,KTAG,ICOMM,IREQUEST_LOCAL,IERROR)
     KREQUEST=IREQUEST_LOCAL%MPI_VAL
-#:else
-    CALL MPI_IBSEND(#{if ranksuff[1] == 'C'}# PBUF #{ else }# DUM #{ endif  }# &
-   & ,ICOUNT,${dtype_size(ranksuff)}$,KDEST-1,KTAG,ICOMM, &
-      & KREQUEST,IERROR)
-#:endif      
   ELSE IF(IMP_TYPE == JP_BLOCKING_SYNCHRONOUS) THEN
-    CALL MPI_SSEND(#{if ranksuff[1] == 'C'}# PBUF #{ else }# DUM #{ endif  }# &
-   &,ICOUNT,${dtype_size(ranksuff)}$,KDEST-1,KTAG,ICOMM,IERROR)
+    CALL MPI_SSEND(DUM,ICOUNT,${ecType.mpi_datatype(ranksuff)}$,KDEST-1,KTAG,ICOMM,IERROR)
   ELSE
     IF(PRESENT(KERROR)) THEN
       KERROR=1
@@ -243,27 +219,15 @@ IF (ICOUNT == 0) THEN
   ENDIF
 ELSE
   IF(IMP_TYPE == JP_BLOCKING_STANDARD) THEN
-    CALL MPI_SEND(PBUF,ICOUNT,${dtype_size(ranksuff)}$,KDEST-1,KTAG,ICOMM,IERROR)
+    CALL MPI_SEND(PBUF,ICOUNT,${ecType.mpi_datatype(ranksuff)}$,KDEST-1,KTAG,ICOMM,IERROR)
   ELSE IF(IMP_TYPE == JP_BLOCKING_BUFFERED) THEN
-    CALL MPI_BSEND(PBUF,ICOUNT,${dtype_size(ranksuff)}$,KDEST-1,KTAG,ICOMM,IERROR)
+    CALL MPI_BSEND(PBUF,ICOUNT,${ecType.mpi_datatype(ranksuff)}$,KDEST-1,KTAG,ICOMM,IERROR)
   ELSE IF(IMP_TYPE == JP_NON_BLOCKING_STANDARD) THEN
-#:if ranksuff == '2RM'         
-    CALL MPI_ISEND(PBUF,ICOUNT,MPI_REAL4,KDEST-1,KTAG,ICOMM, &
-      & IREQUEST_LOCAL,IERROR)
-    KREQUEST=IREQUEST_LOCAL%MPI_VAL
+    CALL MPI_ISEND(PBUF,ICOUNT,${ecType.mpi_datatype(ranksuff)}$,KDEST-1,KTAG,ICOMM,KREQUEST,IERROR)
   ELSE IF(IMP_TYPE == JP_NON_BLOCKING_BUFFERED) THEN
-    CALL MPI_IBSEND(PBUF,ICOUNT,MPI_REAL4,KDEST-1,KTAG,ICOMM, &
-      & IREQUEST_LOCAL,IERROR)
-    KREQUEST=IREQUEST_LOCAL%MPI_VAL
-#:else      
-    CALL MPI_ISEND(PBUF,ICOUNT,${dtype_size(ranksuff)}$,KDEST-1,KTAG,ICOMM, &
-      & KREQUEST,IERROR)
-  ELSE IF(IMP_TYPE == JP_NON_BLOCKING_BUFFERED) THEN
-    CALL MPI_IBSEND(PBUF,ICOUNT,${dtype_size(ranksuff)}$,KDEST-1,KTAG,ICOMM, &
-      & KREQUEST,IERROR)
-#:endif      
+    CALL MPI_IBSEND(PBUF,ICOUNT,${ecType.mpi_datatype(ranksuff)}$,KDEST-1,KTAG,ICOMM,KREQUEST,IERROR)
   ELSE IF(IMP_TYPE == JP_BLOCKING_SYNCHRONOUS) THEN
-    CALL MPI_SSEND(PBUF,ICOUNT,${dtype_size(ranksuff)}$,KDEST-1,KTAG,ICOMM,IERROR)
+    CALL MPI_SSEND(PBUF,ICOUNT,${ecType.mpi_datatype(ranksuff)}$,KDEST-1,KTAG,ICOMM,IERROR)
   ELSE
     IF(PRESENT(KERROR)) THEN
       KERROR=1
@@ -282,6 +246,7 @@ ELSE
 ENDIF
       
 END SUBROUTINE MPL_SEND_${ranksuff}$${suffix}$
+
 
 #:endfor
 
